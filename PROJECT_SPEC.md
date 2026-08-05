@@ -58,6 +58,18 @@ spread for every game, and surface the edge versus the Caesars line.
   rows incl. report_status + practice participation), pbp (48,771 plays with
   `wp`, `epa`), snap counts, depth charts.
 
+## Calibration results (Phase 2, run 2026-08-05)
+Walk-forward backtest, 1,424 games 2021–2025, each season rated only from
+prior-season data. Fitted vs. Caesars-era consensus closing spreads:
+- Coefficients: k_qb=0.724, k_perf=1.583, HFA=1.69 (stored in output/calibration.json)
+- Model vs closing line: MAE 3.45 pts, correlation 0.686
+- Model vs actual margin: MAE 10.12 (market closing line benchmark: 9.76)
+- In-sample ATS at edge ≥2 pts: 54.3% (889 games) — optimistic (in-sample, no
+  injury info in backtest); treat as upper bound, validate live via CLV.
+- Base (snap-share) component carries no market signal (teams field identical
+  bodies); excluded from spread fit, kept at fixed 0.5 scale for player
+  display + injury-depth math. OL injury impact is understated — future work.
+
 ## Build phases
 1. **Data pipeline + valuation engine** (local): pull multi-season data, compute
    leverage-weighted player values, team ratings.

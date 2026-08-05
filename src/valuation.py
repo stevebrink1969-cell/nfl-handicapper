@@ -18,14 +18,14 @@ import polars as pl
 from . import config as C
 
 
-def _season_weights() -> pl.DataFrame:
+def _season_weights(wts: dict[int, float]) -> pl.DataFrame:
     return pl.DataFrame(
-        {"season": list(C.SEASON_WEIGHTS), "sw": list(C.SEASON_WEIGHTS.values())},
+        {"season": list(wts), "sw": list(wts.values())},
         schema={"season": pl.Int32, "sw": pl.Float64},
     )
 
 
-def add_weights(pbp: pl.DataFrame) -> pl.DataFrame:
+def add_weights(pbp: pl.DataFrame, wts: dict[int, float]) -> pl.DataFrame:
     """Attach leverage weight (lw) and season recency weight (sw) to each play."""
     pbp = pbp.with_columns(pl.col("wp").fill_null(0.5), pl.col("season").cast(pl.Int32))
     in_band = (pl.col("wp") >= C.WP_LO) & (pl.col("wp") <= C.WP_HI)
@@ -40,7 +40,7 @@ def add_weights(pbp: pl.DataFrame) -> pl.DataFrame:
     )
     return (
         pbp.with_columns(lw)
-        .join(_season_weights(), on="season", how="left")
+        .join(_season_weights(wts), on="season", how="left")
         .with_columns(pl.col("sw").fill_null(0.0))
     )
 
@@ -156,7 +156,8 @@ def def_values(pbp: pl.DataFrame) -> pl.DataFrame:
     return _rate_per_game(stacked, "pid", pl.col("val"), "def_pts")
 
 
-def snap_base(snaps: pl.DataFrame, rosters_all: pl.DataFrame) -> pl.DataFrame:
+def snap_base(snaps: pl.DataFrame, rosters_all: pl.DataFrame,
+              wts: dict[int, float]) -> pl.DataFrame:
     """Recency-weighted snap share per player (gsis id), for the base component."""
     xwalk = (
         rosters_all.filter(
@@ -177,7 +178,7 @@ def snap_base(snaps: pl.DataFrame, rosters_all: pl.DataFrame) -> pl.DataFrame:
         pl.col("pct").mean().alias("pct_s")
     )
     g = (
-        per_season.join(_season_weights(), on="season", how="inner")
+        per_season.join(_season_weights(wts), on="season", how="inner")
         .group_by("pfr_player_id")
         .agg(((pl.col("sw") * pl.col("pct_s")).sum() / pl.col("sw").sum()).alias("snap_pct"))
     )
@@ -187,9 +188,9 @@ def snap_base(snaps: pl.DataFrame, rosters_all: pl.DataFrame) -> pl.DataFrame:
 
 
 def player_values(pbp: pl.DataFrame, snaps: pl.DataFrame, roster: pl.DataFrame,
-                  rosters_all: pl.DataFrame) -> pl.DataFrame:
+                  rosters_all: pl.DataFrame, wts: dict[int, float]) -> pl.DataFrame:
     """Join all components onto the target roster and total them (raw units)."""
-    pbp = add_weights(pbp)
+    pbp = add_weights(pbp, wts)
     ro = (
         roster.filter(
             pl.col("gsis_id").is_not_null()
@@ -210,7 +211,7 @@ def player_values(pbp: pl.DataFrame, snaps: pl.DataFrame, roster: pl.DataFrame,
         .join(rush_values(pbp), left_on="gsis_id", right_on="pid", how="left")
         .join(recv_values(pbp), left_on="gsis_id", right_on="pid", how="left")
         .join(def_values(pbp), left_on="gsis_id", right_on="pid", how="left")
-        .join(snap_base(snaps, rosters_all), left_on="gsis_id", right_on="pid", how="left")
+        .join(snap_base(snaps, rosters_all, wts), left_on="gsis_id", right_on="pid", how="left")
     )
     base_map = pl.DataFrame(
         {"grp": list(C.POS_BASE), "pos_base": list(C.POS_BASE.values())}

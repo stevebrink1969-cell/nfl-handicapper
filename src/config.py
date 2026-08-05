@@ -2,9 +2,17 @@
 
 SEASONS = [2021, 2022, 2023, 2024, 2025]
 TARGET_SEASON = 2026  # season we're projecting; falls back to latest with rosters
+BACKTEST_SEASONS = [2021, 2022, 2023, 2024, 2025]
+LOOKBACK_START = 2016  # earliest season of data needed to value BACKTEST_SEASONS
 
-# Recency: how much each past season counts toward a player's current value
-SEASON_WEIGHTS = {2025: 1.0, 2024: 0.60, 2023: 0.35, 2022: 0.20, 2021: 0.10}
+# Recency: how much each of the previous N seasons counts toward a player's
+# current value (index 0 = last season, 1 = two seasons ago, ...)
+LAG_WEIGHTS = [1.0, 0.60, 0.35, 0.20, 0.10]
+
+
+def season_weights(target_season: int) -> dict[int, float]:
+    """Season -> recency weight for valuing rosters of target_season."""
+    return {target_season - 1 - i: w for i, w in enumerate(LAG_WEIGHTS)}
 
 # Leverage weighting — discounts garbage-time / low-leverage production
 WP_LO, WP_HI = 0.05, 0.95          # win-prob band where plays count fully
@@ -61,5 +69,10 @@ ROTATION = {
 }
 
 # Final scaling: team ratings normalized so their std dev matches typical NFL
-# team-strength spread in points (calibrated properly in Phase 2).
+# team-strength spread in points (only used before calibration exists).
 TEAM_RATING_STD = 6.0
+
+# Base (snap-share) component is market-neutral across teams — every club
+# fields ~22 starters — so it can't be fitted from game results. It stays in
+# player points at this fixed scale for display and injury-depth purposes.
+K_BASE_DISPLAY = 0.5

@@ -27,8 +27,9 @@ def main() -> None:
         target_season = max(C.SEASONS)
     print(f"Valuing {target_season} rosters from {min(C.SEASONS)}-{max(C.SEASONS)} data")
 
-    players = valuation.player_values(pbp, snaps, target, rosters_all)
-    tr, ranked, scale = teams.team_ratings(players)
+    wts = C.season_weights(target_season)
+    players = valuation.player_values(pbp, snaps, target, rosters_all, wts)
+    tr, ranked, info = teams.team_ratings(players)
 
     cols = ["full_name", "team", "position", "grp", "points", "qb", "rush", "recv",
             "def", "base", "snap_pct", "rot_w", "years_exp"]
@@ -37,7 +38,7 @@ def main() -> None:
     )
     tr.select("team", "rating").write_csv(OUT / f"team_ratings_{target_season}.csv")
 
-    print(f"\nScale: {scale:.4f} raw->points | {ranked.height} players valued\n")
+    print(f"\nMode: {info['mode']} | {ranked.height} players valued\n")
     print("=== Top 15 players (all positions) ===")
     print(ranked.sort("points", descending=True).select(
         "full_name", "team", "position", "points", "qb", "rush", "recv", "def", "base"
@@ -52,6 +53,8 @@ def main() -> None:
     best, worst = tr.row(0), tr.row(-1)
     print(f"\nSanity: {best[0]} vs {worst[0]} on neutral field -> "
           f"{best[0]} -{best[2] - worst[2]:.1f}")
+    if info["mode"] == "calibrated":
+        print(f"HFA: {info['hfa']:.2f} pts (add to home team)")
 
 
 if __name__ == "__main__":

@@ -9,6 +9,11 @@ LOOKBACK_START = 2016  # earliest season of data needed to value BACKTEST_SEASON
 # current value (index 0 = last season, 1 = two seasons ago, ...)
 LAG_WEIGHTS = [1.0, 0.60, 0.35, 0.20, 0.10]
 
+# Weight for the in-progress season's own games (in-season updating). OOS
+# testing (scripts/oos_test2.py) showed weekly updating cuts MAE vs close from
+# 3.33 to 3.03 and lifts 3+pt-edge ATS from 52.8% to 57.5%.
+CUR_SEASON_WEIGHT = 1.25
+
 
 def season_weights(target_season: int) -> dict[int, float]:
     """Season -> recency weight for valuing rosters of target_season."""

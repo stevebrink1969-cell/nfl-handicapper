@@ -14,8 +14,16 @@ OUT.mkdir(exist_ok=True)
 
 
 def main() -> None:
-    pbp = data.pbp(C.SEASONS)
-    snaps = data.snap_counts(C.SEASONS)
+    # In-season: include the target season's own games once they exist
+    # (weighted CUR_SEASON_WEIGHT). Before Week 1 this falls back cleanly.
+    try:
+        pbp = data.pbp(C.SEASONS + [C.TARGET_SEASON])
+        snaps = data.snap_counts(C.SEASONS + [C.TARGET_SEASON])
+        in_season = True
+    except Exception:
+        pbp = data.pbp(C.SEASONS)
+        snaps = data.snap_counts(C.SEASONS)
+        in_season = False
     rosters_all = pl.concat(
         [data.rosters(s) for s in C.SEASONS], how="vertical_relaxed"
     )
@@ -28,6 +36,8 @@ def main() -> None:
     print(f"Valuing {target_season} rosters from {min(C.SEASONS)}-{max(C.SEASONS)} data")
 
     wts = C.season_weights(target_season)
+    if in_season:
+        wts[target_season] = C.CUR_SEASON_WEIGHT
     players = valuation.player_values(pbp, snaps, target, rosters_all, wts)
     tr, ranked, info = teams.team_ratings(players)
 

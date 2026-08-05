@@ -1,6 +1,6 @@
-"""Caesars line fetching + snapshot history (The Odds API).
+"""Book line fetching (DraftKings) + snapshot history (The Odds API).
 
-Every refresh appends a snapshot of the current Caesars spread for each
+Every refresh appends a snapshot of the current book spread for each
 upcoming game to output/odds_history.csv. The first snapshot ever seen for a
 game is its opening line; the latest is the current line. That history powers
 open->current movement display and, after games close, closing-line-value
@@ -20,7 +20,7 @@ from pathlib import Path
 import polars as pl
 
 HIST = Path(__file__).resolve().parent.parent / "output" / "odds_history.csv"
-BOOK = "williamhill_us"  # The Odds API's key for Caesars
+BOOK = "draftkings"  # Caesars unavailable via The Odds API; DK tracks it closely
 HIST_FIELDS = ["fetched_at", "commence_time", "home", "away", "book", "home_line"]
 
 NAME2ABBR = {
@@ -51,7 +51,7 @@ def _api_key() -> str | None:
 
 
 def fetch_snapshot() -> int:
-    """Fetch current Caesars spreads and append to history. Returns row count
+    """Fetch current book spreads and append to history. Returns row count
     appended (0 if no key or no lines posted)."""
     key = _api_key()
     if not key:
@@ -100,15 +100,15 @@ def fetch_snapshot() -> int:
             if new_file:
                 w.writeheader()
             w.writerows(rows)
-    print(f"odds: appended {len(rows)} Caesars line snapshots")
+    print(f"odds: appended {len(rows)} book line snapshots")
     return len(rows)
 
 
 def lines_table() -> pl.DataFrame:
-    """Opening (first-seen) and current (latest) Caesars line per game."""
+    """Opening (first-seen) and current (latest) book line per game."""
     empty = pl.DataFrame(schema={
         "home": pl.String, "away": pl.String,
-        "open_line": pl.Float64, "caesars_line": pl.Float64,
+        "open_line": pl.Float64, "book_line": pl.Float64,
     })
     if not HIST.exists():
         return empty
@@ -117,5 +117,5 @@ def lines_table() -> pl.DataFrame:
         return empty
     return h.group_by("home", "away", "commence_time").agg(
         pl.col("home_line").first().alias("open_line"),
-        pl.col("home_line").last().alias("caesars_line"),
-    ).select("home", "away", "open_line", "caesars_line")
+        pl.col("home_line").last().alias("book_line"),
+    ).select("home", "away", "open_line", "book_line")

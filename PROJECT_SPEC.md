@@ -15,7 +15,7 @@ spread for every game, and surface the edge versus the Caesars line.
 | Garbage time | Discount low-leverage production (blowout/fluke scoring) using win probability on each play |
 | Data | Free public data — nflverse via `nflreadpy` (rosters, depth charts, official injury reports, snap counts, EPA/WP play-by-play) |
 | Output | Projected spread per game + edge vs. market |
-| Market line | Caesars specifically |
+| Market line | DraftKings (Caesars chosen originally, but The Odds API no longer carries Caesars NFL spreads; DK has full coverage and tracks Caesars within ~0.5 pt — decided 2026-08-05) |
 | Line movement | Store every odds snapshot from the scheduled polls: opening line (first seen), full timestamped movement history, and closing line. Show open → current movement per game; measure closing line value (does the market move toward our number?) as a model-validation metric. Free-tier Odds API has no historical archive, so live history accumulates from launch; backtest uses free historical open/close datasets where available. |
 | Questionable players | Probability-weighted (~75–80% base play rate, adjusted by position and practice participation) — line adjusts smoothly |
 | Validation | Full backtest: build values from prior seasons, generate lines for past games, compare vs. actual closing lines/results to calibrate the point scale |

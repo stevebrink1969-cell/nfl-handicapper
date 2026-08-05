@@ -170,7 +170,7 @@ function slateView(){
   for (const g of D.slate){
     const model = fmtLine(g.away_team, g.home_team, g.model_line);
     const market = fmtLine(g.away_team, g.home_team, g.market_line);
-    const mktLbl = g.mkt_src === 'caesars' ? 'Caesars' : 'Market';
+    const mktLbl = g.mkt_src === 'book' ? 'DraftKings' : 'Market';
     let badge = '<span class="badge b-flat">no line</span>';
     if (g.edge != null){
       const a = Math.abs(g.edge), side = g.edge > 0 ? g.home_team : g.away_team;

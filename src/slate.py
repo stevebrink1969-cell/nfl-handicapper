@@ -29,13 +29,13 @@ def build(tr: pl.DataFrame, inj_adj: pl.DataFrame, hfa: float, season: int,
     else:
         games = games.with_columns(
             pl.lit(None, dtype=pl.Float64).alias("open_line"),
-            pl.lit(None, dtype=pl.Float64).alias("caesars_line"),
+            pl.lit(None, dtype=pl.Float64).alias("book_line"),
         )
-    # Market line: Caesars when we have it, else nflverse consensus
+    # Market line: sportsbook when we have it, else nflverse consensus
     games = games.with_columns(
-        pl.coalesce("caesars_line", "spread_line").alias("market_line"),
-        pl.when(pl.col("caesars_line").is_not_null())
-        .then(pl.lit("caesars")).otherwise(pl.lit("consensus")).alias("mkt_src"),
+        pl.coalesce("book_line", "spread_line").alias("market_line"),
+        pl.when(pl.col("book_line").is_not_null())
+        .then(pl.lit("book")).otherwise(pl.lit("consensus")).alias("mkt_src"),
     )
     rat = tr.join(inj_adj, on="team", how="left").with_columns(
         pl.col("inj_adj").fill_null(0.0),

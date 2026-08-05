@@ -58,6 +58,16 @@ spread for every game, and surface the edge versus the Caesars line.
   rows incl. report_status + practice participation), pbp (48,771 plays with
   `wp`, `epa`), snap counts, depth charts.
 
+## Model upgrade (2026-08-05): in-season weekly updating adopted
+Player values now recompute weekly during the season, including the current
+season's games at weight 1.25. Out-of-sample 2023–2025 (each season graded on
+prior-year fits only): MAE vs close 3.33 → 3.03; ATS on 3+ pt edges 52.8% →
+57.5% (203–150). Tested and REJECTED: rest differential (market prices it,
+no gain) and prior-season team anchor (improves line-matching to MAE 2.91 but
+erodes betting edge — it copies what the market already knows). Production
+calibration refit on weekly walk-forward components: k_qb=0.853, k_perf=1.574,
+HFA=1.66.
+
 ## Calibration results (Phase 2, run 2026-08-05)
 Walk-forward backtest, 1,424 games 2021–2025, each season rated only from
 prior-season data. Fitted vs. Caesars-era consensus closing spreads:

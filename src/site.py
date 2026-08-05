@@ -179,8 +179,11 @@ function slateView(){
       badge = `<span class="badge ${cls}">${txt}</span>`;
     }
     const notes = [];
-    if (g.open_line != null && g.market_line != null && g.open_line !== g.market_line)
-      notes.push(`Opened ${fmtLine(g.away_team, g.home_team, g.open_line)}`);
+    if (g.open_line != null){
+      const moved = g.market_line != null && g.open_line !== g.market_line;
+      const delta = moved ? ` · moved ${Math.abs(g.market_line - g.open_line).toFixed(1)}` : '';
+      notes.push(`Opened ${fmtLine(g.away_team, g.home_team, g.open_line)}${delta}`);
+    }
     if (g.adj_a) notes.push(`${g.away_team} ${g.adj_a.toFixed(1)} inj`);
     if (g.adj_h) notes.push(`${g.home_team} ${g.adj_h.toFixed(1)} inj`);
     el.append($(`<div class="card">

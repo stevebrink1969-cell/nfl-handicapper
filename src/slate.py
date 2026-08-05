@@ -13,12 +13,29 @@ def upcoming_week(season: int) -> tuple[pl.DataFrame, int]:
 
 
 def build(tr: pl.DataFrame, inj_adj: pl.DataFrame, hfa: float, season: int,
-          week: int | None = None) -> tuple[pl.DataFrame, int]:
+          week: int | None = None,
+          odds: pl.DataFrame | None = None) -> tuple[pl.DataFrame, int]:
     sched, next_week = upcoming_week(season)
     week = week or next_week
     games = sched.filter(pl.col("week") == week).select(
         "game_id", "gameday", "weekday", "gametime",
         "away_team", "home_team", "spread_line", "location",
+    )
+    if odds is not None and odds.height > 0:
+        games = games.join(
+            odds.rename({"home": "home_team", "away": "away_team"}),
+            on=["home_team", "away_team"], how="left",
+        )
+    else:
+        games = games.with_columns(
+            pl.lit(None, dtype=pl.Float64).alias("open_line"),
+            pl.lit(None, dtype=pl.Float64).alias("caesars_line"),
+        )
+    # Market line: Caesars when we have it, else nflverse consensus
+    games = games.with_columns(
+        pl.coalesce("caesars_line", "spread_line").alias("market_line"),
+        pl.when(pl.col("caesars_line").is_not_null())
+        .then(pl.lit("caesars")).otherwise(pl.lit("consensus")).alias("mkt_src"),
     )
     rat = tr.join(inj_adj, on="team", how="left").with_columns(
         pl.col("inj_adj").fill_null(0.0),
@@ -42,7 +59,7 @@ def build(tr: pl.DataFrame, inj_adj: pl.DataFrame, hfa: float, season: int,
             .alias("model_line")
         )
         .with_columns(
-            (pl.col("model_line") - pl.col("spread_line")).round(1).alias("edge")
+            (pl.col("model_line") - pl.col("market_line")).round(1).alias("edge")
         )
         .sort(pl.col("edge").abs(), descending=True, nulls_last=True)
     )

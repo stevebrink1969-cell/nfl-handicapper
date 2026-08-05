@@ -6,7 +6,8 @@ from pathlib import Path
 
 import polars as pl
 
-SITE_DIR = Path(__file__).resolve().parent.parent / "site"
+# docs/ because GitHub Pages serves from the repo's /docs folder
+SITE_DIR = Path(__file__).resolve().parent.parent / "docs"
 
 
 def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
@@ -44,7 +45,8 @@ def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
         },
         "slate": slate.select(
             "gameday", "weekday", "gametime", "away_team", "home_team",
-            "spread_line", "model_line", "edge", "adj_h", "adj_a",
+            "market_line", "mkt_src", "open_line", "model_line", "edge",
+            "adj_h", "adj_a",
         ).to_dicts(),
         "teams": teams_tbl.select("team", "rating", "inj_adj").to_dicts(),
         "rosters": rosters,
@@ -167,7 +169,8 @@ function slateView(){
   if (!D.slate.length){ el.append($('<div class="empty">No games found.</div>')); return el; }
   for (const g of D.slate){
     const model = fmtLine(g.away_team, g.home_team, g.model_line);
-    const market = fmtLine(g.away_team, g.home_team, g.spread_line);
+    const market = fmtLine(g.away_team, g.home_team, g.market_line);
+    const mktLbl = g.mkt_src === 'caesars' ? 'Caesars' : 'Market';
     let badge = '<span class="badge b-flat">no line</span>';
     if (g.edge != null){
       const a = Math.abs(g.edge), side = g.edge > 0 ? g.home_team : g.away_team;
@@ -175,9 +178,11 @@ function slateView(){
       const txt = a < 1 ? 'fair' : `${side} +${a.toFixed(1)}`;
       badge = `<span class="badge ${cls}">${txt}</span>`;
     }
-    const inj = [];
-    if (g.adj_a) inj.push(`${g.away_team} ${g.adj_a.toFixed(1)} inj`);
-    if (g.adj_h) inj.push(`${g.home_team} ${g.adj_h.toFixed(1)} inj`);
+    const notes = [];
+    if (g.open_line != null && g.market_line != null && g.open_line !== g.market_line)
+      notes.push(`Opened ${fmtLine(g.away_team, g.home_team, g.open_line)}`);
+    if (g.adj_a) notes.push(`${g.away_team} ${g.adj_a.toFixed(1)} inj`);
+    if (g.adj_h) notes.push(`${g.home_team} ${g.adj_h.toFixed(1)} inj`);
     el.append($(`<div class="card">
       <div class="gm-top">
         <span class="matchup">${g.away_team} @ ${g.home_team}</span>
@@ -185,10 +190,10 @@ function slateView(){
       </div>
       <div class="lines">
         <div><div class="lbl">Model</div><div class="val">${model}</div></div>
-        <div><div class="lbl">Market</div><div class="val">${market}</div></div>
+        <div><div class="lbl">${mktLbl}</div><div class="val">${market}</div></div>
         ${badge}
       </div>
-      ${inj.length ? `<div class="injnote">Injury adj: ${inj.join(' · ')}</div>` : ''}
+      ${notes.length ? `<div class="injnote">${notes.join(' · ')}</div>` : ''}
     </div>`));
   }
   return el;

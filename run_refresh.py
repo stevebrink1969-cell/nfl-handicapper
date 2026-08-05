@@ -10,7 +10,7 @@ import polars as pl
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from src import config as C
-from src import data, injuries, pipeline, site, slate
+from src import data, injuries, odds, pipeline, site, slate
 
 OUT = Path(__file__).resolve().parent / "output"
 
@@ -33,6 +33,8 @@ def main() -> None:
     if "--keep-cache" not in sys.argv:
         clear_current_caches()
 
+    odds.fetch_snapshot()
+
     built = pipeline.build()
     sched_season = C.TARGET_SEASON  # slate uses the target season's schedule
     _, week = slate.upcoming_week(sched_season)
@@ -42,7 +44,7 @@ def main() -> None:
     inj_adj = injuries.team_adjustments(adjusted)
 
     games, week = slate.build(built.tr, inj_adj, built.info.get("hfa", 0.0),
-                              sched_season, week)
+                              sched_season, week, odds.lines_table())
 
     payload = site.assemble(games, week, sched_season, built.tr, adjusted,
                             inj_adj, built.info)
@@ -51,8 +53,8 @@ def main() -> None:
     listed = report.height
     print(f"Season {sched_season} week {week}: {games.height} games, "
           f"{listed} injury listings, in_season={built.in_season}")
-    print(games.select("away_team", "home_team", "spread_line", "model_line",
-                       "edge").head(16))
+    print(games.select("away_team", "home_team", "market_line", "mkt_src",
+                       "model_line", "edge").head(16))
     print(f"Site written: {out}")
 
 

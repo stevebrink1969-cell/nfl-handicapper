@@ -1,0 +1,48 @@
+name: refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    # All times UTC. Mon-Thu: 3x daily. Fri-Sun (0=Sun): every ~3h through
+    # game windows, catching Fri/Sat injury designations and Sunday moves.
+    - cron: "0 11,17,23 * * 1-4"
+    - cron: "0 2,8,11,14,17,20,23 * * 0,5,6"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Historical nflverse downloads are cached between runs; run_refresh.py
+      # deletes only the current-season files so those re-download fresh.
+      - uses: actions/cache@v4
+        with:
+          path: data
+          key: nfl-data-${{ github.run_id }}
+          restore-keys: nfl-data-
+
+      - run: pip install -r requirements.txt
+
+      - run: python run_refresh.py
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+
+      - name: Commit site + odds history
+        run: |
+          git config user.name "refresh-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs output
+          git diff --cached --quiet || git commit -m "auto-refresh $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push

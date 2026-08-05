@@ -80,6 +80,15 @@ prior-season data. Fitted vs. Caesars-era consensus closing spreads:
   bodies); excluded from spread fit, kept at fixed 0.5 scale for player
   display + injury-depth math. OL injury impact is understated — future work.
 
+## Deployed (2026-08-05) — all four phases complete
+- Live site: https://stevebrink1969-cell.github.io/nfl-handicapper/
+- Repo: https://github.com/stevebrink1969-cell/nfl-handicapper (public)
+- Auto-refresh: GitHub Actions, 3x daily Mon–Thu, ~3-hourly Fri–Sun (UTC),
+  first cloud run verified green. ODDS_API_KEY stored as repo secret; local
+  key in .env (gitignored).
+- Odds usage: 1 API request per refresh ≈ 140/month vs 500 free quota.
+- Opening lines for all 272 games of 2026 captured 2026-08-05.
+
 ## Build phases
 1. **Data pipeline + valuation engine** (local): pull multi-season data, compute
    leverage-weighted player values, team ratings.

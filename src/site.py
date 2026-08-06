@@ -6,8 +6,48 @@ from pathlib import Path
 
 import polars as pl
 
+from . import data
+
 # docs/ because GitHub Pages serves from the repo's /docs folder
 SITE_DIR = Path(__file__).resolve().parent.parent / "docs"
+
+
+def build_results(season: int) -> dict:
+    """Completed-game scores and player stat lines for client-side bet
+    grading (empty preseason; grows through the season)."""
+    out = {"games": [], "pstats": []}
+    try:
+        sched = data.schedules([season])
+    except Exception:
+        return out
+    done = sched.filter(pl.col("home_score").is_not_null())
+    if done.height:
+        out["games"] = done.select(
+            (pl.col("away_team") + " @ " + pl.col("home_team")).alias("game"),
+            pl.col("week").cast(pl.Int64), "home_team", "away_team",
+            "home_score", "away_score", "spread_line", "total_line",
+        ).to_dicts()
+    try:
+        from . import props as props_mod
+        from .propscan import _norm_name
+        ps = props_mod.load_stats([season])
+        if ps.height:
+            compact = ps.select(
+                pl.col("player_display_name")
+                .map_elements(_norm_name, return_dtype=pl.String).alias("nkey"),
+                pl.col("week").cast(pl.Int64),
+                pl.col("passing_yards").alias("py"),
+                pl.col("passing_tds").alias("ptd"),
+                pl.col("rushing_yards").alias("ry"),
+                pl.col("carries").alias("ca"),
+                pl.col("receptions").alias("rec"),
+                pl.col("receiving_yards").alias("recy"),
+                (pl.col("rushing_tds") + pl.col("receiving_tds")).alias("atd"),
+            )
+            out["pstats"] = compact.to_dicts()
+    except Exception:
+        pass
+    return out
 
 
 def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
@@ -55,6 +95,7 @@ def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
         "rosters": rosters,
         "props": prop_plays.to_dicts() if prop_plays is not None and prop_plays.height else [],
         "sgps": sgps or [],
+        "results": build_results(season),
     }
 
 
@@ -149,6 +190,38 @@ h2{font-size:15px;margin:14px 4px 8px;color:var(--ink2)}
   background:var(--accent);color:#fff;border:none;border-radius:20px;
   padding:8px 16px;font:600 13px inherit;z-index:10;cursor:pointer;
   box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.logbtn{background:none;border:1px solid var(--line);border-radius:6px;
+  color:var(--accent);font:600 11px inherit;padding:3px 8px;cursor:pointer;margin-left:6px}
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20;
+  align-items:flex-end;justify-content:center}
+#modal.on{display:flex}
+#mbox{background:var(--card);border-radius:16px 16px 0 0;padding:18px 16px
+  max(18px, env(safe-area-inset-bottom));width:100%;max-width:520px}
+#mbox h3{font-size:16px;margin-bottom:10px}
+#mbox label{display:block;font-size:12px;color:var(--ink3);margin:10px 0 4px}
+#mbox input,#mbox select{width:100%;padding:10px;border:1px solid var(--line);
+  border-radius:8px;background:var(--bg);color:var(--ink);font:15px inherit}
+.mrow{display:flex;gap:10px}
+.mrow>div{flex:1}
+.mbtns{display:flex;gap:10px;margin-top:16px}
+.mbtns button{flex:1;padding:12px;border-radius:10px;border:none;
+  font:600 14px inherit;cursor:pointer}
+.msave{background:var(--accent);color:#fff}
+.mcancel{background:var(--flat-bg);color:var(--ink2)}
+.bet{border-bottom:1px solid var(--line);padding:10px 2px}
+.bet:last-child{border-bottom:none}
+.bet .b1{display:flex;justify-content:space-between;gap:8px}
+.bet .bdesc{font-weight:600;font-size:14px}
+.bet .bmeta{color:var(--ink3);font-size:12px;margin-top:2px}
+.st-won{color:var(--good);font-weight:700}
+.st-lost{color:var(--neg);font-weight:700}
+.st-open{color:var(--ink3);font-weight:600}
+.st-push,.st-void,.st-check{color:var(--lean);font-weight:600}
+.bsum{display:flex;gap:14px;margin-bottom:4px}
+.bsum div{flex:1;text-align:center}
+.bsum .val{font-size:17px}
+.tiny{background:none;border:none;color:var(--ink3);font-size:11px;cursor:pointer;
+  text-decoration:underline;padding:2px 4px}
 </style>
 </head>
 <body>
@@ -161,9 +234,11 @@ h2{font-size:15px;margin:14px 4px 8px;color:var(--ink2)}
 <nav>
   <button id="nav-slate" onclick="show('slate')">This Week</button>
   <button id="nav-props" onclick="show('props')">Props</button>
+  <button id="nav-bets" onclick="show('bets')">Bets</button>
   <button id="nav-teams" onclick="show('teams')">Teams</button>
   <button id="nav-about" onclick="show('about')">Model</button>
 </nav>
+<div id="modal"><div id="mbox"></div></div>
 <script>
 const D = __DATA__;
 const $ = (h) => { const d = document.createElement('div'); d.innerHTML = h; return d.firstElementChild; };
@@ -223,6 +298,10 @@ function slateView(){
       </div>
       ${totRow}
       ${notes.length ? `<div class="injnote">${notes.join(' · ')}</div>` : ''}
+      <div style="margin-top:8px;text-align:right">
+        <button class="logbtn" onclick="openLog(LOGPRE[${LOGPRE.push({type:'spread',game:g.away_team+' @ '+g.home_team,home:g.home_team,away:g.away_team,mline:g.market_line}) - 1}])">+ bet spread</button>
+        <button class="logbtn" onclick="openLog(LOGPRE[${LOGPRE.push({type:'total',game:g.away_team+' @ '+g.home_team,mtotal:g.market_total}) - 1}])">+ bet total</button>
+      </div>
     </div>`));
   }
   return el;
@@ -251,7 +330,8 @@ function propsView(){
       <td>${esc(p.player)}<br><span style="color:var(--ink3);font-size:12px">${p.team} · ${esc(p.game)}</span></td>
       <td>${sideTxt}${p.line || ''} ${esc(p.market)}<br><span style="color:var(--ink3);font-size:12px">${priceTxt}</span></td>
       <td class="num">${p.proj}</td>
-      <td class="num" style="color:var(--good);font-weight:700">+${p.ev_pct}%</td>
+      <td class="num" style="color:var(--good);font-weight:700">+${p.ev_pct}%<br>
+        <button class="logbtn" style="margin:4px 0 0" onclick="openLog(LOGPRE[${LOGPRE.push({type:'prop',game:p.game,player:p.player,nkey:p.nkey,market:p.market,market_key:p.market_key,side:p.side,line:p.line,price:p.price}) - 1}])">+ bet</button></td>
     </tr>`));
   }
   el.append($(`<div class="empty" style="padding:16px 8px;font-size:12px">Top ${5} per slot by expected value · win probabilities from the projection model · rookies and small samples excluded</div>`));
@@ -271,10 +351,220 @@ function propsView(){
         <div style="margin-top:8px">${legs}</div>
         <div class="injnote">Win ${(s.p_joint * 100).toFixed(1)}% · fair ${fair} ·
         <b>worth it if DK quotes ${minq} or better</b> · corr ${s.avg_r >= 0 ? '+' : ''}${s.avg_r}</div>
+        <div style="margin-top:6px;text-align:right">
+          <button class="logbtn" onclick="openLog(LOGPRE[${LOGPRE.push({type:'sgp',game:s.game,legs:s.legs,min_quote:s.min_quote}) - 1}])">+ bet this parlay</button>
+        </div>
       </div>`));
     }
     el.append($('<div class="empty" style="padding:12px 8px;font-size:12px">Correlations measured from 3 seasons of same-game results. Check DK\'s quoted SGP price against the "worth it" number — below it, pass.</div>'));
   }
+  return el;
+}
+
+// ===== Bet tracker (device-local storage, dollars) =====
+const LOGPRE = [];
+const BKEY = 'nfl_bets_v1';
+const loadBets = () => { try { return JSON.parse(localStorage.getItem(BKEY) || '[]'); } catch { return []; } };
+const saveBets = (b) => localStorage.setItem(BKEY, JSON.stringify(b));
+const decOdds = (a) => a > 0 ? 1 + a / 100 : 1 + 100 / (-a);
+const FMAP = {player_pass_yds:'py', player_pass_tds:'ptd', player_rush_yds:'ry',
+  player_rush_attempts:'ca', player_receptions:'rec', player_reception_yds:'recy',
+  player_anytime_td:'atd'};
+
+function openLog(pre){
+  const box = document.getElementById('mbox');
+  let fields = '';
+  if (pre.type === 'spread'){
+    const hl = pre.mline != null ? -pre.mline : 0, al = pre.mline != null ? pre.mline : 0;
+    fields = `<label>Side</label>
+      <select id="f-side" onchange="document.getElementById('f-line').value = this.value === 'home' ? ${hl} : ${al}">
+      <option value="away">${pre.away} ${al >= 0 ? '+' + al : al}</option>
+      <option value="home">${pre.home} ${hl >= 0 ? '+' + hl : hl}</option></select>
+      <label>Line taken (points for your team)</label><input id="f-line" type="number" step="0.5" value="${al}">
+      `;
+  } else if (pre.type === 'total'){
+    fields = `<label>Side</label><select id="f-side"><option>Over</option><option>Under</option></select>
+      <label>Total line</label><input id="f-line" type="number" step="0.5" value="${pre.mtotal ?? ''}">`;
+  } else if (pre.type === 'prop'){
+    fields = `<div class="bmeta" style="margin-top:6px">${esc(pre.player)} — ${pre.side === 'Yes' ? '' : pre.side + ' '}${pre.line || ''} ${esc(pre.market)}</div>`;
+  } else if (pre.type === 'sgp'){
+    fields = `<div class="bmeta" style="margin-top:6px">${pre.legs.map(l => esc(l.player) + ' ' + (l.side === 'Yes' ? '' : l.side + ' ') + (l.line || '') + ' ' + esc(l.market)).join('<br>')}</div>
+      <div class="bmeta">Enter DK's quoted parlay price (worth it at ${pre.min_quote > 0 ? '+' + pre.min_quote : pre.min_quote}+)</div>`;
+  } else {
+    fields = `<label>Description</label><input id="f-desc" type="text" placeholder="e.g. BUF ML week 3">`;
+  }
+  box.innerHTML = `<h3>Log bet — ${esc(pre.game || 'manual')}</h3>${fields}
+    <div class="mrow"><div><label>Odds (American)</label>
+      <input id="f-price" type="number" step="5" value="${pre.price ?? -110}"></div>
+    <div><label>Stake ($)</label><input id="f-stake" type="number" step="1" inputmode="decimal"></div></div>
+    <div class="mbtns"><button class="mcancel" onclick="closeLog()">Cancel</button>
+    <button class="msave" onclick="saveLog()">Save bet</button></div>`;
+  document.getElementById('modal').classList.add('on');
+  window._pre = pre;
+}
+function closeLog(){ document.getElementById('modal').classList.remove('on'); }
+function saveLog(){
+  const pre = window._pre;
+  const stake = parseFloat(document.getElementById('f-stake').value);
+  const price = parseInt(document.getElementById('f-price').value);
+  if (!stake || !price){ alert('Need stake and odds'); return; }
+  const b = {id: Date.now(), placed: D.meta.updated, type: pre.type,
+             game: pre.game || '', price, stake, status: 'open'};
+  if (pre.type === 'spread'){
+    const sideEl = document.getElementById('f-side');
+    b.team = sideEl.value === 'home' ? pre.home : pre.away;
+    b.line = parseFloat(document.getElementById('f-line').value);
+    b.desc = `${b.team} ${b.line >= 0 ? '+' + b.line : b.line}`;
+  } else if (pre.type === 'total'){
+    b.side = document.getElementById('f-side').value;
+    b.line = parseFloat(document.getElementById('f-line').value);
+    b.desc = `${b.side} ${b.line} — ${pre.game}`;
+  } else if (pre.type === 'prop'){
+    Object.assign(b, {player: pre.player, nkey: pre.nkey, market_key: pre.market_key,
+                      side: pre.side, line: pre.line});
+    b.desc = `${pre.player} ${pre.side === 'Yes' ? '' : pre.side + ' '}${pre.line || ''} ${pre.market}`;
+  } else if (pre.type === 'sgp'){
+    b.legs = pre.legs.map(l => ({nkey: _nk(l.player), market_key: _mk(l.market),
+                                 side: l.side, line: l.line, player: l.player}));
+    b.desc = `SGP: ${pre.legs.map(l => l.player.split(' ').slice(-1)[0]).join(' + ')}`;
+  } else {
+    b.desc = document.getElementById('f-desc').value || 'manual bet';
+  }
+  const bets = loadBets(); bets.push(b); saveBets(bets); closeLog();
+  show('bets');
+}
+const _nk = (s) => (s || '').toLowerCase().replace(/[.'’]/g, '').replace(/\s+(jr|sr|ii|iii|iv|v)$/, '');
+const MK_REV = {'Pass yds':'player_pass_yds','Pass TDs':'player_pass_tds','Rush yds':'player_rush_yds',
+  'Carries':'player_rush_attempts','Receptions':'player_receptions','Rec yds':'player_reception_yds',
+  'Anytime TD':'player_anytime_td'};
+const _mk = (label) => MK_REV[label] || label;
+
+function _gradeLeg(l, gm){
+  const rows = (D.results.pstats || []).filter(x => x.nkey === l.nkey && x.week === gm.week);
+  if (!rows.length) return null;
+  const v = rows[0][FMAP[l.market_key]];
+  if (v == null) return null;
+  if (l.market_key === 'player_anytime_td')
+    return v > 0 === (l.side !== 'Under') ? 'won' : 'lost';
+  const d = l.side === 'Under' ? l.line - v : v - l.line;
+  return d > 0 ? 'won' : d < 0 ? 'lost' : 'push';
+}
+function gradeBet(b){
+  const gm = (D.results.games || []).find(x => x.game === b.game);
+  if (!gm) return null;
+  const margin = gm.home_score - gm.away_score, total = gm.home_score + gm.away_score;
+  if (b.type === 'spread'){
+    const tm = b.team === gm.home_team ? margin : -margin;
+    const d = tm + b.line;
+    const closeLine = b.team === gm.home_team ? -gm.spread_line : gm.spread_line;
+    const clv = gm.spread_line != null ? +(b.line - closeLine).toFixed(1) : null;
+    return _settle(b, d > 0 ? 'won' : d < 0 ? 'lost' : 'push', clv);
+  }
+  if (b.type === 'total'){
+    const d = b.side === 'Over' ? total - b.line : b.line - total;
+    const clv = gm.total_line != null
+      ? +((b.side === 'Over' ? gm.total_line - b.line : b.line - gm.total_line)).toFixed(1) : null;
+    return _settle(b, d > 0 ? 'won' : d < 0 ? 'lost' : 'push', clv);
+  }
+  if (b.type === 'prop'){
+    const st = _gradeLeg(b, gm);
+    return st ? _settle(b, st, null) : null;
+  }
+  if (b.type === 'sgp'){
+    const sts = b.legs.map(l => _gradeLeg(l, gm));
+    if (sts.includes(null)) return null;
+    if (sts.includes('lost')) return _settle(b, 'lost', null);
+    if (sts.includes('push')) return _settle(b, 'check', null);
+    return _settle(b, 'won', null);
+  }
+  return null;
+}
+function _settle(b, status, clv){
+  const payout = status === 'won' ? b.stake * (decOdds(b.price) - 1)
+    : status === 'lost' ? -b.stake : 0;
+  return {status, payout: +payout.toFixed(2), clv};
+}
+function gradeAll(){
+  const bets = loadBets();
+  let changed = false;
+  for (const b of bets){
+    if (b.status !== 'open') continue;
+    const res = gradeBet(b);
+    if (res){ Object.assign(b, res); changed = true; }
+  }
+  if (changed) saveBets(bets);
+  return bets;
+}
+function manualGrade(id, status){
+  const bets = loadBets();
+  const b = bets.find(x => x.id === id);
+  if (b){ Object.assign(b, _settle(b, status, null)); saveBets(bets); show('bets'); }
+}
+function delBet(id){
+  if (!confirm('Delete this bet?')) return;
+  saveBets(loadBets().filter(x => x.id !== id));
+  show('bets');
+}
+function exportBets(){
+  const blob = new Blob([JSON.stringify(loadBets(), null, 1)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'nfl-bets-backup.json';
+  a.click();
+}
+function importBets(ev){
+  const f = ev.target.files[0];
+  if (!f) return;
+  f.text().then(t => {
+    const incoming = JSON.parse(t);
+    const cur = loadBets();
+    const ids = new Set(cur.map(b => b.id));
+    for (const b of incoming) if (!ids.has(b.id)) cur.push(b);
+    saveBets(cur);
+    show('bets');
+  }).catch(() => alert('Could not read that file'));
+}
+
+function betsView(){
+  const bets = gradeAll().slice().sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || b.id - a.id);
+  const el = $('<div></div>');
+  const settled = bets.filter(b => ['won', 'lost', 'push'].includes(b.status));
+  const staked = settled.reduce((s, b) => s + b.stake, 0);
+  const net = settled.reduce((s, b) => s + (b.payout || 0), 0);
+  const w = settled.filter(b => b.status === 'won').length;
+  const l = settled.filter(b => b.status === 'lost').length;
+  const p = settled.filter(b => b.status === 'push').length;
+  el.append($(`<div class="card"><div class="bsum">
+    <div><div class="lbl">Record</div><div class="val">${w}-${l}${p ? '-' + p : ''}</div></div>
+    <div><div class="lbl">Net</div><div class="val" style="color:${net >= 0 ? 'var(--good)' : 'var(--neg)'}">${net >= 0 ? '+' : ''}$${net.toFixed(2)}</div></div>
+    <div><div class="lbl">ROI</div><div class="val">${staked ? (net / staked * 100).toFixed(1) + '%' : '—'}</div></div>
+  </div>
+  <div style="text-align:center;margin-top:8px">
+    <button class="logbtn" onclick="openLog({type:'other'})">+ log a bet manually</button>
+    <button class="tiny" onclick="exportBets()">export backup</button>
+    <label class="tiny" style="cursor:pointer">import<input type="file" accept=".json" style="display:none" onchange="importBets(event)"></label>
+  </div></div>`));
+  if (!bets.length){
+    el.append($('<div class="empty">No bets logged yet on this device.<br><br>Use the "+ bet" buttons on games, props, and parlays — or log one manually above. Bets grade themselves as results come in. Data stays on this device; export a backup now and then.</div>'));
+    return el;
+  }
+  const card = $('<div class="card"></div>');
+  for (const b of bets){
+    const stCls = 'st-' + b.status;
+    const pay = b.status === 'won' ? `+$${b.payout.toFixed(2)}` : b.status === 'lost' ? `-$${b.stake.toFixed(2)}` : '';
+    const clv = b.clv != null ? ` · CLV ${b.clv >= 0 ? '+' : ''}${b.clv}` : '';
+    const manual = (b.status === 'open' && b.type === 'other') || b.status === 'check'
+      ? `<button class="tiny" onclick="manualGrade(${b.id},'won')">won</button>
+         <button class="tiny" onclick="manualGrade(${b.id},'lost')">lost</button>
+         <button class="tiny" onclick="manualGrade(${b.id},'push')">push</button>` : '';
+    card.append($(`<div class="bet">
+      <div class="b1"><span class="bdesc">${esc(b.desc)}</span>
+      <span class="${stCls}">${b.status.toUpperCase()}${pay ? ' ' + pay : ''}</span></div>
+      <div class="bmeta">${esc(b.game)} · $${b.stake} @ ${b.price > 0 ? '+' + b.price : b.price}${clv}
+      ${manual} <button class="tiny" onclick="delBet(${b.id})">delete</button></div>
+    </div>`));
+  }
+  el.append(card);
   return el;
 }
 
@@ -348,10 +638,11 @@ function aboutView(){
 function show(which, arg){
   const v = document.getElementById('view');
   v.replaceChildren();
-  for (const n of ['slate','props','teams','about'])
+  for (const n of ['slate','props','bets','teams','about'])
     document.getElementById('nav-' + n).classList.toggle('on', n === which || (which === 'roster' && n === 'teams'));
   if (which === 'slate') v.append(slateView());
   else if (which === 'props') v.append(propsView());
+  else if (which === 'bets') v.append(betsView());
   else if (which === 'teams') v.append(teamsView());
   else if (which === 'roster') v.append(rosterView(arg));
   else v.append(aboutView());

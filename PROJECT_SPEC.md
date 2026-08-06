@@ -112,6 +112,17 @@ QB rolling values, rookie draft-capital seeding, OL injury calibration.
 | Bet tracker | On-site log: device-local storage (no sync), dollars, auto-graded from final scores/stats, running P&L + CLV |
 | Weather | Open-Meteo (free, no key) forecasts by stadium for totals; historical temp/wind from nflverse schedules for backtest |
 
+## Phases 9-13 (agreed 2026-08-06): all recommended additions adopted
+9. Model report card + paper-trading ledger (auto-grade every flagged edge as
+   flat $100; record by bet type; CLV on every play) — the trust engine.
+10. Full-season edge board (model vs all 272 posted DK lines; look-ahead
+    lines are soft).
+11. Line movement detail per game (timeline; flag market moving through us).
+12. League-wide injury impact panel.
+13. Weather (Open-Meteo) into totals + display, once games are in range (Sept).
+Explicitly rejected: playoff simulators, social/consensus features, new bet
+types (moneylines/teasers) before the ledger validates existing ones.
+
 ## Build phases
 1. **Data pipeline + valuation engine** (local): pull multi-season data, compute
    leverage-weighted player values, team ratings.

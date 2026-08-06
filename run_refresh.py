@@ -10,7 +10,7 @@ import polars as pl
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from src import config as C
-from src import data, injuries, odds, pipeline, propscan, sgp, site, slate, totals
+from src import data, injuries, ledger, odds, pipeline, propscan, sgp, site, slate, totals
 
 OUT = Path(__file__).resolve().parent / "output"
 
@@ -73,8 +73,14 @@ def main() -> None:
         print(f"props scan failed: {e}")
         prop_plays, sgps = None, []
 
+    try:
+        led = ledger.update(games, prop_plays, sched_season, week)
+    except Exception as e:
+        print(f"ledger failed: {e}")
+        led = None
+
     payload = site.assemble(games, week, sched_season, built.tr, adjusted,
-                            inj_adj, built.info, prop_plays, sgps)
+                            inj_adj, built.info, prop_plays, sgps, led)
     out = site.write(payload)
 
     listed = report.height

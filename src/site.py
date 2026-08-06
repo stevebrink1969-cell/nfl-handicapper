@@ -53,7 +53,8 @@ def build_results(season: int) -> dict:
 def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
              adjusted: pl.DataFrame, inj_adj: pl.DataFrame, info: dict,
              prop_plays: pl.DataFrame | None = None,
-             sgps: list | None = None) -> dict:
+             sgps: list | None = None,
+             led: dict | None = None) -> dict:
     teams_tbl = tr.join(inj_adj, on="team", how="left").with_columns(
         pl.col("inj_adj").fill_null(0.0)
     )
@@ -96,6 +97,7 @@ def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
         "props": prop_plays.to_dicts() if prop_plays is not None and prop_plays.height else [],
         "sgps": sgps or [],
         "results": build_results(season),
+        "ledger": led,
     }
 
 
@@ -609,7 +611,37 @@ function rosterView(t){
 }
 
 function aboutView(){
-  return $(`<div class="card about">
+  const wrap = $('<div></div>');
+  if (D.ledger){
+    const L = D.ledger.types;
+    const row = (label, t) => {
+      const anyGraded = t.w + t.l + t.p > 0;
+      return `<tr><td>${label}</td>
+        <td class="num">${anyGraded ? `${t.w}-${t.l}${t.p ? '-' + t.p : ''}` : '—'}</td>
+        <td class="num" style="color:${(t.net ?? 0) >= 0 ? 'var(--good)' : 'var(--neg)'}">${anyGraded ? (t.net >= 0 ? '+' : '') + '$' + t.net.toFixed(0) : '—'}</td>
+        <td class="num">${t.roi != null ? t.roi + '%' : '—'}</td>
+        <td class="num">${t.clv != null ? (t.clv >= 0 ? '+' : '') + t.clv : '—'}</td>
+        <td class="num" style="color:var(--ink3)">${t.open}</td></tr>`;
+    };
+    wrap.append($(`<h2>Live record — every flagged edge, flat $100 paper bets</h2>`));
+    wrap.append($(`<div class="card"><table>
+      <thead><tr><th>Type</th><th class="num">W-L</th><th class="num">Net</th><th class="num">ROI</th><th class="num">CLV</th><th class="num">Open</th></tr></thead>
+      <tbody>${row('Spreads (2+ pts)', L.spread)}${row('Totals (3+ pts)', L.total)}${row('Props (top 5s)', L.prop)}</tbody>
+      </table>
+      <div class="injnote" style="margin-top:10px">Recorded automatically the first time the model flags each edge — whether or not anyone bets it. This is the model's public track record; judge it here before trusting it with real money.</div>
+      </div>`));
+    if (D.ledger.recent.length){
+      const rows = D.ledger.recent.map(r => `<tr>
+        <td>${esc(r.desc)}<br><span style="color:var(--ink3);font-size:11px">wk ${r.week} · ${r.type}</span></td>
+        <td class="num st-${r.status}">${r.status.toUpperCase()}</td>
+        <td class="num">${r.payout > 0 ? '+' : ''}${r.payout ? '$' + r.payout.toFixed(0) : ''}</td>
+        <td class="num">${r.clv != null ? (r.clv >= 0 ? '+' : '') + r.clv : ''}</td></tr>`).join('');
+      wrap.append($(`<div class="card"><table>
+        <thead><tr><th>Recent plays</th><th class="num">Result</th><th class="num">P/L</th><th class="num">CLV</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`));
+    }
+  }
+  wrap.append($(`<div class="card about">
     <p><b>How the line is made.</b> Every player carries a point value learned from
     five seasons of play-by-play data: garbage-time production is discounted,
     recent seasons count more, and values update weekly during the season.
@@ -632,7 +664,8 @@ function aboutView(){
     market. Over/Under badges appear only on 3+ pt gaps and deserve extra
     skepticism until live tracking proves otherwise. Weather forecasts will be
     added in-season (wind matters for totals).</p>
-  </div>`);
+  </div>`));
+  return wrap;
 }
 
 function show(which, arg){

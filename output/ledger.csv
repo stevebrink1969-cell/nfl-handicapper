@@ -1,0 +1,8 @@
+key,first_seen,season,week,type,game,desc,team,side,player,nkey,market_key,line,price,model_val,market_val,edge,status,payout,clv
+2026-1-spread-ARI @ LAC,2026-08-06 15:50 UTC,2026,1,spread,ARI @ LAC,ARI +11.5,ARI,,,,,11.5,-110.0,3.3,11.5,8.2,open,,
+2026-1-spread-MIA @ LV,2026-08-06 15:50 UTC,2026,1,spread,MIA @ LV,LV -3.5,LV,,,,,-3.5,-110.0,6.9,3.5,3.4,open,,
+2026-1-spread-WAS @ PHI,2026-08-06 15:50 UTC,2026,1,spread,WAS @ PHI,WAS +4.5,WAS,,,,,4.5,-110.0,1.4,4.5,3.1,open,,
+2026-1-total-WAS @ PHI,2026-08-06 15:50 UTC,2026,1,total,WAS @ PHI,Under 47.5 WAS @ PHI,,Under,,,,47.5,-110.0,43.9,47.5,3.6,open,,
+2026-1-total-DAL @ NYG,2026-08-06 15:50 UTC,2026,1,total,DAL @ NYG,Over 48.5 DAL @ NYG,,Over,,,,48.5,-110.0,53.3,48.5,4.8,open,,
+2026-1-total-SF @ LA,2026-08-06 15:50 UTC,2026,1,total,SF @ LA,Over 48.5 SF @ LA,,Over,,,,48.5,-110.0,53.2,48.5,4.7,open,,
+2026-1-total-NYJ @ TEN,2026-08-06 15:50 UTC,2026,1,total,NYJ @ TEN,Over 38.5 NYJ @ TEN,,Over,,,,38.5,-110.0,41.7,38.5,3.2,open,,

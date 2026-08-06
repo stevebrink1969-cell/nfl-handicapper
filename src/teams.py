@@ -45,12 +45,21 @@ def ranked_with_rotation(players: pl.DataFrame) -> pl.DataFrame:
 
 
 def team_components(players: pl.DataFrame) -> pl.DataFrame:
-    """Rotation-weighted raw component sums per team (calibration inputs)."""
+    """Rotation-weighted raw component sums per team (calibration inputs).
+
+    qb/perf/base feed the spread model; off_c (QB + rush + recv) and defp_c
+    (defensive playmaking) give the offense/defense split the totals model
+    needs."""
     r = ranked_with_rotation(players)
     return r.group_by("team").agg(
         (pl.col("qb_pts") * pl.col("rot_w")).sum().alias("qb_c"),
         (pl.col("perf_raw") * pl.col("rot_w")).sum().alias("perf_c"),
         (pl.col("base_pts") * pl.col("rot_w")).sum().alias("base_c"),
+        (
+            (pl.col("qb_pts") + pl.col("rush_pts") + pl.col("recv_pts"))
+            * pl.col("rot_w")
+        ).sum().alias("off_c"),
+        (pl.col("def_pts") * pl.col("rot_w")).sum().alias("defp_c"),
     )
 
 

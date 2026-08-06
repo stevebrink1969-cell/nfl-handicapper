@@ -99,6 +99,18 @@ QB rolling values, rookie draft-capital seeding, OL injury calibration.
 - Odds usage: 1 API request per refresh ≈ 140/month vs 500 free quota.
 - Opening lines for all 272 games of 2026 captured 2026-08-05.
 
+## Phase 5-8: Totals, Props, SGPs, Bet Tracker (interviewed 2026-08-06)
+
+| Area | Decision |
+|---|---|
+| Rollout | Ship each piece when ready; totals first |
+| Totals model | Exploit O/U mispricing: offense/defense split ratings + pace + weather (wind matters for totals, unlike spreads); backtest vs 5 seasons of closing totals, same OOS protocol |
+| Props scanner | Scan ALL player prop markets per time slot, rank by EV, show top 5 per slot |
+| Prop odds | The Odds API paid tier (~$30/mo, 20K credits) — Steve upgrades his existing key |
+| Parlays | Same-game parlays, 2-3 legs, correlation-aware pricing |
+| Bet tracker | On-site log: device-local storage (no sync), dollars, auto-graded from final scores/stats, running P&L + CLV |
+| Weather | Open-Meteo (free, no key) forecasts by stadium for totals; historical temp/wind from nflverse schedules for backtest |
+
 ## Build phases
 1. **Data pipeline + valuation engine** (local): pull multi-season data, compute
    leverage-weighted player values, team ratings.

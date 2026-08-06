@@ -34,6 +34,8 @@ def build() -> SimpleNamespace:
         wts[season] = C.CUR_SEASON_WEIGHT
     players = valuation.player_values(pbp, snaps, target, rosters_all, wts)
     tr, ranked, info = teams.team_ratings(players)
+    comps = teams.team_components(players)
     return SimpleNamespace(
-        tr=tr, ranked=ranked, info=info, season=season, in_season=in_season
+        tr=tr, ranked=ranked, info=info, comps=comps, season=season,
+        in_season=in_season
     )

@@ -1,0 +1,33 @@
+{
+  "features": [
+    "const",
+    "offsum",
+    "defsum",
+    "scoring",
+    "oepasum",
+    "depasum",
+    "pacex",
+    "env",
+    "windx",
+    "cold",
+    "dome"
+  ],
+  "coefs": [
+    4.794983518248788,
+    0.3648602887476391,
+    -0.43326324884753475,
+    0.29335349556559825,
+    9.263234560246218,
+    6.121008711302006,
+    0.15474989740506856,
+    0.3441599000818838,
+    -0.1720549937875039,
+    -1.4285259469433045,
+    1.1955464355293584
+  ],
+  "games": 1424,
+  "mae_vs_close": 2.046699242325015,
+  "mae_vs_actual": 10.494147900489281,
+  "market_mae_vs_actual": 10.312851123595506,
+  "oos_note": "OOS 2023-25: MAE vs close 2.18; O/U on 3+pt edges 53.3% (210 games) - marginal; treat totals edges cautiously, validate via live CLV"
+}

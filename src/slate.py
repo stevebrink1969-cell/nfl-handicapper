@@ -20,6 +20,7 @@ def build(tr: pl.DataFrame, inj_adj: pl.DataFrame, hfa: float, season: int,
     games = sched.filter(pl.col("week") == week).select(
         "game_id", "gameday", "weekday", "gametime",
         "away_team", "home_team", "spread_line", "location",
+        "total_line", "roof",
     )
     if odds is not None and odds.height > 0:
         games = games.join(

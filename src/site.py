@@ -46,6 +46,7 @@ def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
         "slate": slate.select(
             "gameday", "weekday", "gametime", "away_team", "home_team",
             "market_line", "mkt_src", "open_line", "model_line", "edge",
+            "model_total", "market_total", "open_total", "total_edge", "tot_src",
             "adj_h", "adj_a",
         ).to_dicts(),
         "teams": teams_tbl.select("team", "rating", "inj_adj").to_dicts(),
@@ -178,12 +179,26 @@ function slateView(){
       const txt = a < 1 ? 'fair' : `${side} +${a.toFixed(1)}`;
       badge = `<span class="badge ${cls}">${txt}</span>`;
     }
+    let totRow = '';
+    if (g.model_total != null){
+      let tb = '';
+      if (g.total_edge != null && Math.abs(g.total_edge) >= 3){
+        tb = `<span class="badge b-lean">${g.total_edge > 0 ? 'Over' : 'Under'} +${Math.abs(g.total_edge).toFixed(1)}</span>`;
+      }
+      const mktT = g.market_total != null ? g.market_total.toFixed(1) : '—';
+      totRow = `<div class="lines">
+        <div><div class="lbl">Total (model)</div><div class="val">${g.model_total.toFixed(1)}</div></div>
+        <div><div class="lbl">${g.tot_src === 'book' ? 'DK total' : 'Mkt total'}</div><div class="val">${mktT}</div></div>
+        ${tb}</div>`;
+    }
     const notes = [];
     if (g.open_line != null){
       const moved = g.market_line != null && g.open_line !== g.market_line;
       const delta = moved ? ` · moved ${Math.abs(g.market_line - g.open_line).toFixed(1)}` : '';
       notes.push(`Opened ${fmtLine(g.away_team, g.home_team, g.open_line)}${delta}`);
     }
+    if (g.open_total != null && g.market_total != null && g.open_total !== g.market_total)
+      notes.push(`Total opened ${g.open_total.toFixed(1)}`);
     if (g.adj_a) notes.push(`${g.away_team} ${g.adj_a.toFixed(1)} inj`);
     if (g.adj_h) notes.push(`${g.home_team} ${g.adj_h.toFixed(1)} inj`);
     el.append($(`<div class="card">
@@ -196,6 +211,7 @@ function slateView(){
         <div><div class="lbl">${mktLbl}</div><div class="val">${market}</div></div>
         ${badge}
       </div>
+      ${totRow}
       ${notes.length ? `<div class="injnote">${notes.join(' · ')}</div>` : ''}
     </div>`));
   }
@@ -259,6 +275,13 @@ function aboutView(){
     better for BUF than the market line — the bigger the gap, the stronger
     the disagreement. Under 1 pt is priced fairly. This is a research tool, not
     betting advice; lines move and the market is sharp.</p>
+    <p><b>Totals.</b> Each card also shows the model's fair total vs the book's
+    over/under. Honest caveat: in backtesting, the totals model predicts the
+    closing total very accurately (within ~2.2 pts) but its disagreements only
+    broke even against results — the totals market is sharper than the spread
+    market. Over/Under badges appear only on 3+ pt gaps and deserve extra
+    skepticism until live tracking proves otherwise. Weather forecasts will be
+    added in-season (wind matters for totals).</p>
   </div>`);
 }
 

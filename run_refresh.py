@@ -10,7 +10,7 @@ import polars as pl
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from src import config as C
-from src import data, injuries, odds, pipeline, site, slate
+from src import data, injuries, odds, pipeline, site, slate, totals
 
 OUT = Path(__file__).resolve().parent / "output"
 
@@ -45,6 +45,25 @@ def main() -> None:
 
     games, week = slate.build(built.tr, inj_adj, built.info.get("hfa", 0.0),
                               sched_season, week, odds.lines_table())
+    games = totals.predict(games, built.comps, sched_season)
+    tot_odds = odds.totals_lines_table()
+    if tot_odds.height > 0:
+        games = games.join(
+            tot_odds.rename({"home": "home_team", "away": "away_team"}),
+            on=["home_team", "away_team"], how="left",
+        )
+    else:
+        games = games.with_columns(
+            pl.lit(None, pl.Float64).alias("open_total"),
+            pl.lit(None, pl.Float64).alias("book_total"),
+        )
+    games = games.with_columns(
+        pl.coalesce("book_total", "total_line").alias("market_total"),
+        pl.when(pl.col("book_total").is_not_null())
+        .then(pl.lit("book")).otherwise(pl.lit("consensus")).alias("tot_src"),
+    ).with_columns(
+        (pl.col("model_total") - pl.col("market_total")).round(1).alias("total_edge")
+    )
 
     payload = site.assemble(games, week, sched_season, built.tr, adjusted,
                             inj_adj, built.info)

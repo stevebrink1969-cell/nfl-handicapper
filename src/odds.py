@@ -20,8 +20,10 @@ from pathlib import Path
 import polars as pl
 
 HIST = Path(__file__).resolve().parent.parent / "output" / "odds_history.csv"
+TOT_HIST = Path(__file__).resolve().parent.parent / "output" / "totals_history.csv"
 BOOK = "draftkings"  # Caesars unavailable via The Odds API; DK tracks it closely
 HIST_FIELDS = ["fetched_at", "commence_time", "home", "away", "book", "home_line"]
+TOT_FIELDS = ["fetched_at", "commence_time", "home", "away", "book", "total"]
 
 NAME2ABBR = {
     "Arizona Cardinals": "ARI", "Atlanta Falcons": "ATL", "Baltimore Ravens": "BAL",
@@ -59,7 +61,7 @@ def fetch_snapshot() -> int:
         return 0
     url = (
         "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds"
-        f"?apiKey={key}&regions=us&markets=spreads&bookmakers={BOOK}"
+        f"?apiKey={key}&regions=us&markets=spreads,totals&bookmakers={BOOK}"
         "&oddsFormat=american"
     )
     try:
@@ -69,7 +71,7 @@ def fetch_snapshot() -> int:
         print(f"odds: fetch failed ({e}), using consensus lines")
         return 0
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    rows = []
+    rows, tot_rows = [], []
     for ev in events:
         home = NAME2ABBR.get(ev.get("home_team", ""))
         away = NAME2ABBR.get(ev.get("away_team", ""))
@@ -77,31 +79,48 @@ def fetch_snapshot() -> int:
             continue
         for bk in ev.get("bookmakers", []):
             for mk in bk.get("markets", []):
-                if mk.get("key") != "spreads":
-                    continue
-                pt = next(
-                    (o.get("point") for o in mk.get("outcomes", [])
-                     if o.get("name") == ev["home_team"]),
-                    None,
-                )
-                if pt is not None:
-                    rows.append({
-                        "fetched_at": now, "commence_time": ev["commence_time"],
-                        "home": home, "away": away, "book": bk["key"],
-                        # API points are the handicap (favorite negative);
-                        # store as home margin to match nflverse convention
-                        "home_line": -float(pt),
-                    })
-    if rows:
-        new_file = not HIST.exists()
-        HIST.parent.mkdir(exist_ok=True)
-        with HIST.open("a", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=HIST_FIELDS)
+                if mk.get("key") == "spreads":
+                    pt = next(
+                        (o.get("point") for o in mk.get("outcomes", [])
+                         if o.get("name") == ev["home_team"]),
+                        None,
+                    )
+                    if pt is not None:
+                        rows.append({
+                            "fetched_at": now, "commence_time": ev["commence_time"],
+                            "home": home, "away": away, "book": bk["key"],
+                            # API points are the handicap (favorite negative);
+                            # store as home margin to match nflverse convention
+                            "home_line": -float(pt),
+                        })
+                elif mk.get("key") == "totals":
+                    pt = next(
+                        (o.get("point") for o in mk.get("outcomes", [])
+                         if o.get("name") == "Over"),
+                        None,
+                    )
+                    if pt is not None:
+                        tot_rows.append({
+                            "fetched_at": now, "commence_time": ev["commence_time"],
+                            "home": home, "away": away, "book": bk["key"],
+                            "total": float(pt),
+                        })
+
+    def _append(path: Path, fields: list[str], data_rows: list[dict]) -> None:
+        if not data_rows:
+            return
+        new_file = not path.exists()
+        path.parent.mkdir(exist_ok=True)
+        with path.open("a", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=fields)
             if new_file:
                 w.writeheader()
-            w.writerows(rows)
-    print(f"odds: appended {len(rows)} book line snapshots")
-    return len(rows)
+            w.writerows(data_rows)
+
+    _append(HIST, HIST_FIELDS, rows)
+    _append(TOT_HIST, TOT_FIELDS, tot_rows)
+    print(f"odds: appended {len(rows)} spread + {len(tot_rows)} total snapshots")
+    return len(rows) + len(tot_rows)
 
 
 def lines_table() -> pl.DataFrame:
@@ -119,3 +138,20 @@ def lines_table() -> pl.DataFrame:
         pl.col("home_line").first().alias("open_line"),
         pl.col("home_line").last().alias("book_line"),
     ).select("home", "away", "open_line", "book_line")
+
+
+def totals_lines_table() -> pl.DataFrame:
+    """Opening (first-seen) and current (latest) book total per game."""
+    empty = pl.DataFrame(schema={
+        "home": pl.String, "away": pl.String,
+        "open_total": pl.Float64, "book_total": pl.Float64,
+    })
+    if not TOT_HIST.exists():
+        return empty
+    h = pl.read_csv(TOT_HIST).sort("fetched_at")
+    if h.height == 0:
+        return empty
+    return h.group_by("home", "away", "commence_time").agg(
+        pl.col("total").first().alias("open_total"),
+        pl.col("total").last().alias("book_total"),
+    ).select("home", "away", "open_total", "book_total")

@@ -80,6 +80,16 @@ prior-season data. Fitted vs. Caesars-era consensus closing spreads:
   bodies); excluded from spread fit, kept at fixed 0.5 scale for player
   display + injury-depth math. OL injury impact is understated — future work.
 
+## Model upgrade (2026-08-06): turnover-luck discount + opponent adjustment
+Research survey (nfelo WEPA, DVOA, turnover-persistence studies) produced two
+adopted upgrades: EPA on interception plays keeps 55% / lost fumbles 45%
+(turnover margin persists only ~11% YoY), and all EPA credits are adjusted
+for opponent strength. OOS 2023–2025: MAE vs close 3.03 → 2.92, ATS ≥1pt
+53.6% → 54.5% (≥2/≥3 within noise of prior best). Recalibrated: k_qb=0.821,
+k_perf=1.901, HFA=1.66. Considered and rejected again: market reversion
+(erodes independent edge). Future candidates: kicker/ST component, faster
+QB rolling values, rookie draft-capital seeding, OL injury calibration.
+
 ## Deployed (2026-08-05) — all four phases complete
 - Live site: https://stevebrink1969-cell.github.io/nfl-handicapper/
 - Repo: https://github.com/stevebrink1969-cell/nfl-handicapper (public)

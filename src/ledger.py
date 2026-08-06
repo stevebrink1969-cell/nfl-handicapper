@@ -25,7 +25,7 @@ FIELDS = ["key", "first_seen", "season", "week", "type", "game", "desc",
           "team", "side", "player", "nkey", "market_key", "line", "price",
           "model_val", "market_val", "edge", "status", "payout", "clv"]
 STAKE = 100.0
-SPREAD_FLAG = 2.0
+SPREAD_FLAG = 3.0   # Steve's rule (2026-08-06): only track 3+ pt spread edges
 TOTAL_FLAG = 3.0
 STAT_COL = {"player_pass_yds": "passing_yards", "player_pass_tds": "passing_tds",
             "player_rush_yds": "rushing_yards", "player_rush_attempts": "carries",

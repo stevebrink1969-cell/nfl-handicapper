@@ -626,7 +626,7 @@ function aboutView(){
     wrap.append($(`<h2>Live record — every flagged edge, flat $100 paper bets</h2>`));
     wrap.append($(`<div class="card"><table>
       <thead><tr><th>Type</th><th class="num">W-L</th><th class="num">Net</th><th class="num">ROI</th><th class="num">CLV</th><th class="num">Open</th></tr></thead>
-      <tbody>${row('Spreads (2+ pts)', L.spread)}${row('Totals (3+ pts)', L.total)}${row('Props (top 5s)', L.prop)}</tbody>
+      <tbody>${row('Spreads (3+ pts)', L.spread)}${row('Totals (3+ pts)', L.total)}${row('Props (top 5s)', L.prop)}</tbody>
       </table>
       <div class="injnote" style="margin-top:10px">Recorded automatically the first time the model flags each edge — whether or not anyone bets it. This is the model's public track record; judge it here before trusting it with real money.</div>
       </div>`));

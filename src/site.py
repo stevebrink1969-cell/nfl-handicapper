@@ -145,6 +145,10 @@ tr:last-child td{border-bottom:none}
 .about b{color:var(--ink)}
 .empty{color:var(--ink3);text-align:center;padding:32px 0;font-size:14px}
 h2{font-size:15px;margin:14px 4px 8px;color:var(--ink2)}
+#fresh{display:none;position:fixed;top:10px;left:50%;transform:translateX(-50%);
+  background:var(--accent);color:#fff;border:none;border-radius:20px;
+  padding:8px 16px;font:600 13px inherit;z-index:10;cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,.25)}
 </style>
 </head>
 <body>
@@ -152,6 +156,7 @@ h2{font-size:15px;margin:14px 4px 8px;color:var(--ink2)}
   <h1>NFL Line Model</h1>
   <div class="sub" id="sub"></div>
 </header>
+<button id="fresh">New version — tap to refresh</button>
 <main id="view"></main>
 <nav>
   <button id="nav-slate" onclick="show('slate')">This Week</button>
@@ -353,6 +358,19 @@ function show(which, arg){
   window.scrollTo(0, 0);
 }
 show('slate');
+
+// Stale-cache buster: fetch the live page bypassing cache; if its build stamp
+// differs from ours, offer a one-tap refresh that forces the new version.
+fetch(location.pathname + '?cb=' + Date.now(), {cache: 'no-store'})
+  .then(r => r.text())
+  .then(t => {
+    const m = t.match(/"updated":"([^"]+)"/);
+    if (m && m[1] !== D.meta.updated){
+      const b = document.getElementById('fresh');
+      b.style.display = 'block';
+      b.onclick = () => location.href = location.pathname + '?v=' + Date.now();
+    }
+  }).catch(() => {});
 </script>
 </body>
 </html>

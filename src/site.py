@@ -741,28 +741,55 @@ function aboutView(){
     }
   }
   wrap.append($(`<div class="card about">
-    <p><b>How the line is made.</b> Every player carries a point value learned from
-    five seasons of play-by-play data: garbage-time production is discounted,
-    recent seasons count more, and values update weekly during the season.
-    A team's rating sums its expected lineup; the projected spread is the rating
-    gap plus ${D.meta.hfa} pts of home field, minus injury adjustments.</p>
-    <p><b>Injuries.</b> Out/Doubtful players are replaced by the next man up.
-    Questionable players count at their probability of playing (50–90%
-    depending on practice participation).</p>
-    <p><b>Track record.</b> Calibrated on 1,424 games (2021–2025):
-    average miss vs the closing line ${D.meta.mae} pts, correlation ${D.meta.corr}.
-    ${esc(D.meta.oos)}.</p>
-    <p><b>Reading the badge.</b> "BUF +2.5" means the model's number is 2.5 pts
-    better for BUF than the market line — the bigger the gap, the stronger
-    the disagreement. Under 1 pt is priced fairly. This is a research tool, not
-    betting advice; lines move and the market is sharp.</p>
-    <p><b>Totals.</b> Each card also shows the model's fair total vs the book's
-    over/under. Honest caveat: in backtesting, the totals model predicts the
-    closing total very accurately (within ~2.2 pts) but its disagreements only
-    broke even against results — the totals market is sharper than the spread
-    market. Over/Under badges appear only on 3+ pt gaps and deserve extra
-    skepticism until live tracking proves otherwise. Weather forecasts will be
-    added in-season (wind matters for totals).</p>
+    <p><b>How the spread is made.</b> Every player carries a point value learned
+    from five seasons of play-by-play data. Production is weighted by leverage
+    (garbage-time plays count ~15%), turnover plays keep only part of their
+    value (interceptions 55%, lost fumbles 45% — turnover luck barely repeats),
+    and every credit is adjusted for the strength of the opponent faced. Recent
+    seasons count more, and values re-learn weekly from the current season's
+    games. A team's rating sums its expected lineup; the projected spread is
+    the rating gap plus ${D.meta.hfa} pts of home field, minus injury
+    adjustments.</p>
+    <p><b>Injuries.</b> Out/Doubtful players are replaced by the next man up;
+    Questionables count at their play probability (50–90% by practice
+    participation). The league-wide panel on the Week tab ranks this week's
+    listings by line impact — already baked into every projected spread.</p>
+    <p><b>Totals.</b> Fair total per game from offense/defense splits, scoring
+    rates, pace, and the league scoring environment (weather joins in-season —
+    wind matters for totals). Honest caveat: the model tracks closing totals
+    within ~2.2 pts, but historically its totals disagreements only broke even
+    — the totals market is sharper than the spread market. O/U badges appear
+    only at 3+ pt gaps; treat them more skeptically than spread edges.</p>
+    <p><b>Props.</b> Player stat lines are projected as role × team volume ×
+    efficiency, walk-forward, beating naive baselines on every stat in
+    validation, with win probabilities from calibrated distributions (the
+    model's "50% band" catches ~50% of outcomes). The scanner prices every DK
+    prop market, filters anything worse than -140, and posts the top 5 by
+    expected value per time slot. Rookies and thin samples are excluded.</p>
+    <p><b>Same-game parlays.</b> 2–3 leg combos of +EV props, priced with
+    correlations measured from three seasons of same-game results (QB ↔ his
+    receivers +0.30, opposing QBs +0.11, opposing RBs −0.14). DK's SGP quote
+    only exists in their app, so each suggestion shows the minimum quote worth
+    taking (+5% EV) — compare before betting.</p>
+    <p><b>Season board.</b> Model vs posted look-ahead lines for every unplayed
+    game. Future weeks exclude injury adjustments — always recheck a game the
+    week it's played. Look-ahead lines get less market attention, which is the
+    point.</p>
+    <p><b>Line history.</b> The "history" button on game cards shows each
+    line's day-by-day path with a verdict: the market moving toward our number
+    is quiet validation; moving away is a caution; crossing it entirely means
+    the edge flipped since open.</p>
+    <p><b>Bets tab.</b> Your personal log — stored only on this device, graded
+    automatically from results, with closing-line value on spreads and totals.
+    Export a backup now and then.</p>
+    <p><b>The live record above</b> is the model's own honesty test: every
+    flagged edge (spreads 3+, totals 3+, props top-5s) is auto-recorded as a
+    flat $100 paper bet at first flag and graded from results. Backtests
+    (out-of-sample 2023–25: avg miss vs close 2.92 pts, 54.5–56.6% ATS on
+    1–3+ pt edges) say the spread model has an edge; the live record is what
+    will prove or disprove it. Early on, watch CLV rather than win-loss —
+    it's meaningful sooner. This is a research tool, not betting advice;
+    lines move and the market is sharp.</p>
   </div>`));
   return wrap;
 }

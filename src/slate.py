@@ -1,8 +1,56 @@
-"""Build the upcoming week's slate: projected lines, market lines, edges."""
+"""Build the upcoming week's slate and the full-season board."""
 
 import polars as pl
 
 from . import data
+
+
+def build_board(tr: pl.DataFrame, hfa: float, season: int,
+                odds: pl.DataFrame | None = None) -> pl.DataFrame:
+    """Model line vs posted line for EVERY unplayed game this season.
+
+    Future weeks use base ratings (no injury adjustments — future injury
+    reports don't exist). Look-ahead lines get less market attention than
+    game-week lines, which is where this board hunts.
+    """
+    sched = data.schedules([season])
+    games = sched.filter(pl.col("home_score").is_null()).select(
+        "game_id", pl.col("week").cast(pl.Int32), "gameday", "weekday",
+        "gametime", "away_team", "home_team", "spread_line", "location",
+        "total_line", "roof",
+    )
+    if odds is not None and odds.height > 0:
+        games = games.join(
+            odds.rename({"home": "home_team", "away": "away_team"})
+            .unique(subset=["home_team", "away_team"], keep="last"),
+            on=["home_team", "away_team"], how="left",
+        )
+    else:
+        games = games.with_columns(
+            pl.lit(None, dtype=pl.Float64).alias("open_line"),
+            pl.lit(None, dtype=pl.Float64).alias("book_line"),
+        )
+    games = games.with_columns(
+        pl.coalesce("book_line", "spread_line").alias("market_line"),
+        pl.when(pl.col("book_line").is_not_null())
+        .then(pl.lit("book")).otherwise(pl.lit("consensus")).alias("mkt_src"),
+    )
+    h = tr.rename({"team": "home_team", "rating": "rat_h"}).select("home_team", "rat_h")
+    a = tr.rename({"team": "away_team", "rating": "rat_a"}).select("away_team", "rat_a")
+    return (
+        games.join(h, on="home_team", how="left")
+        .join(a, on="away_team", how="left")
+        .with_columns(
+            (
+                pl.col("rat_h") - pl.col("rat_a")
+                + pl.when(pl.col("location") == "Home").then(hfa).otherwise(0.0)
+            ).round(1).alias("model_line")
+        )
+        .with_columns(
+            (pl.col("model_line") - pl.col("market_line")).round(1).alias("edge")
+        )
+        .sort(pl.col("edge").abs(), descending=True, nulls_last=True)
+    )
 
 
 def upcoming_week(season: int) -> tuple[pl.DataFrame, int]:

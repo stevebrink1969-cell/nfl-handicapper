@@ -54,7 +54,8 @@ def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
              adjusted: pl.DataFrame, inj_adj: pl.DataFrame, info: dict,
              prop_plays: pl.DataFrame | None = None,
              sgps: list | None = None,
-             led: dict | None = None) -> dict:
+             led: dict | None = None,
+             board: pl.DataFrame | None = None) -> dict:
     teams_tbl = tr.join(inj_adj, on="team", how="left").with_columns(
         pl.col("inj_adj").fill_null(0.0)
     )
@@ -98,6 +99,11 @@ def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
         "sgps": sgps or [],
         "results": build_results(season),
         "ledger": led,
+        "board": board.select(
+            "week", "gameday", "away_team", "home_team",
+            "model_line", "market_line", "mkt_src", "edge",
+            "model_total", "market_total", "total_edge",
+        ).to_dicts() if board is not None and board.height else [],
     }
 
 
@@ -234,7 +240,8 @@ h2{font-size:15px;margin:14px 4px 8px;color:var(--ink2)}
 <button id="fresh">New version — tap to refresh</button>
 <main id="view"></main>
 <nav>
-  <button id="nav-slate" onclick="show('slate')">This Week</button>
+  <button id="nav-slate" onclick="show('slate')">Week</button>
+  <button id="nav-season" onclick="show('season')">Season</button>
   <button id="nav-props" onclick="show('props')">Props</button>
   <button id="nav-bets" onclick="show('bets')">Bets</button>
   <button id="nav-teams" onclick="show('teams')">Teams</button>
@@ -360,6 +367,29 @@ function propsView(){
     }
     el.append($('<div class="empty" style="padding:12px 8px;font-size:12px">Correlations measured from 3 seasons of same-game results. Check DK\'s quoted SGP price against the "worth it" number — below it, pass.</div>'));
   }
+  return el;
+}
+
+function seasonView(){
+  const el = $('<div></div>');
+  if (!D.board.length){ el.append($('<div class="empty">No future games posted.</div>')); return el; }
+  el.append($(`<div class="empty" style="padding:10px 8px 4px;font-size:12px">All ${D.board.length} unplayed games vs posted look-ahead lines, biggest spread edges first. Future weeks exclude injury adjustments — recheck on game week before acting.</div>`));
+  const rows = D.board.map(g => {
+    const model = fmtLine(g.away_team, g.home_team, g.model_line);
+    const mkt = fmtLine(g.away_team, g.home_team, g.market_line);
+    let badge = '—';
+    if (g.edge != null){
+      const a = Math.abs(g.edge), side = g.edge > 0 ? g.home_team : g.away_team;
+      badge = a >= 1 ? `<span class="${a >= 3 ? 'st-won' : ''}" style="font-weight:700">${side} +${a.toFixed(1)}</span>` : 'fair';
+    }
+    const totNote = (g.total_edge != null && Math.abs(g.total_edge) >= 3)
+      ? `<br><span style="color:var(--lean);font-size:11px">${g.total_edge > 0 ? 'Over' : 'Under'} ${g.market_total} (+${Math.abs(g.total_edge).toFixed(1)})</span>` : '';
+    return `<tr>
+      <td>${g.away_team} @ ${g.home_team}<br><span style="color:var(--ink3);font-size:11px">Wk ${g.week} · ${esc(g.gameday)}</span></td>
+      <td class="num">${model}</td><td class="num">${mkt}${totNote}</td>
+      <td class="num">${badge}</td></tr>`;
+  }).join('');
+  el.append($(`<div class="card"><table><thead><tr><th>Game</th><th class="num">Model</th><th class="num">Line</th><th class="num">Edge</th></tr></thead><tbody>${rows}</tbody></table></div>`));
   return el;
 }
 
@@ -671,9 +701,10 @@ function aboutView(){
 function show(which, arg){
   const v = document.getElementById('view');
   v.replaceChildren();
-  for (const n of ['slate','props','bets','teams','about'])
+  for (const n of ['slate','season','props','bets','teams','about'])
     document.getElementById('nav-' + n).classList.toggle('on', n === which || (which === 'roster' && n === 'teams'));
   if (which === 'slate') v.append(slateView());
+  else if (which === 'season') v.append(seasonView());
   else if (which === 'props') v.append(propsView());
   else if (which === 'bets') v.append(betsView());
   else if (which === 'teams') v.append(teamsView());

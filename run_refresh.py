@@ -65,6 +65,27 @@ def main() -> None:
         (pl.col("model_total") - pl.col("market_total")).round(1).alias("total_edge")
     )
 
+    # Full-season edge board: every unplayed game vs its posted look-ahead line
+    board = slate.build_board(built.tr, built.info.get("hfa", 0.0), sched_season,
+                              odds.lines_table())
+    board = totals.predict(board, built.comps, sched_season)
+    if tot_odds.height > 0:
+        board = board.join(
+            tot_odds.rename({"home": "home_team", "away": "away_team"})
+            .unique(subset=["home_team", "away_team"], keep="last"),
+            on=["home_team", "away_team"], how="left",
+        )
+    else:
+        board = board.with_columns(
+            pl.lit(None, pl.Float64).alias("open_total"),
+            pl.lit(None, pl.Float64).alias("book_total"),
+        )
+    board = board.with_columns(
+        pl.coalesce("book_total", "total_line").alias("market_total"),
+    ).with_columns(
+        (pl.col("model_total") - pl.col("market_total")).round(1).alias("total_edge")
+    )
+
     try:
         all_plays = propscan.scan(sched_season)
         prop_plays = propscan.top_per_slot(all_plays)
@@ -80,7 +101,7 @@ def main() -> None:
         led = None
 
     payload = site.assemble(games, week, sched_season, built.tr, adjusted,
-                            inj_adj, built.info, prop_plays, sgps, led)
+                            inj_adj, built.info, prop_plays, sgps, led, board)
     out = site.write(payload)
 
     listed = report.height

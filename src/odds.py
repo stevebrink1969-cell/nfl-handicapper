@@ -140,6 +140,36 @@ def lines_table() -> pl.DataFrame:
     ).select("home", "away", "open_line", "book_line")
 
 
+def movement_series() -> dict:
+    """Per-game daily line timelines (change points only) for display.
+
+    Returns {"AWAY @ HOME": {"s": [["MM-DD", line], ...], "t": [...]}} using
+    the last snapshot of each day; consecutive unchanged days are dropped."""
+    out: dict = {}
+    for path, key, col in [(HIST, "s", "home_line"), (TOT_HIST, "t", "total")]:
+        if not path.exists():
+            continue
+        h = pl.read_csv(path).sort("fetched_at").with_columns(
+            pl.col("fetched_at").str.slice(0, 10).alias("day")
+        )
+        daily = h.group_by("home", "away", "commence_time", "day",
+                           maintain_order=True).agg(pl.col(col).last().alias("v"))
+        for (home, away, _ct), grp in daily.group_by(
+                ["home", "away", "commence_time"], maintain_order=True):
+            g = grp.sort("day")
+            series, prev = [], None
+            for d, v in zip(g["day"].to_list(), g["v"].to_list()):
+                if prev is None or v != prev:
+                    series.append([d[5:], round(v, 1)])
+                    prev = v
+            game = f"{away} @ {home}"
+            slot = out.setdefault(game, {})
+            # if a matchup repeats, keep the series with the freshest data
+            if key not in slot or series[-1][0] >= slot[key][-1][0]:
+                slot[key] = series
+    return out
+
+
 def totals_lines_table() -> pl.DataFrame:
     """Opening (first-seen) and current (latest) book total per game."""
     empty = pl.DataFrame(schema={

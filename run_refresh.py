@@ -100,8 +100,14 @@ def main() -> None:
         print(f"ledger failed: {e}")
         led = None
 
+    slate_games = set(
+        (games["away_team"] + " @ " + games["home_team"]).to_list()
+    )
+    moves = {k: v for k, v in odds.movement_series().items() if k in slate_games}
+
     payload = site.assemble(games, week, sched_season, built.tr, adjusted,
-                            inj_adj, built.info, prop_plays, sgps, led, board)
+                            inj_adj, built.info, prop_plays, sgps, led, board,
+                            moves)
     out = site.write(payload)
 
     listed = report.height

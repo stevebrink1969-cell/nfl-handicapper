@@ -55,7 +55,8 @@ def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
              prop_plays: pl.DataFrame | None = None,
              sgps: list | None = None,
              led: dict | None = None,
-             board: pl.DataFrame | None = None) -> dict:
+             board: pl.DataFrame | None = None,
+             moves: dict | None = None) -> dict:
     teams_tbl = tr.join(inj_adj, on="team", how="left").with_columns(
         pl.col("inj_adj").fill_null(0.0)
     )
@@ -99,6 +100,7 @@ def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
         "sgps": sgps or [],
         "results": build_results(season),
         "ledger": led,
+        "moves": moves or {},
         "board": board.select(
             "week", "gameday", "away_team", "home_team",
             "model_line", "market_line", "mkt_src", "edge",
@@ -308,6 +310,7 @@ function slateView(){
       ${totRow}
       ${notes.length ? `<div class="injnote">${notes.join(' · ')}</div>` : ''}
       <div style="margin-top:8px;text-align:right">
+        ${mvBtn(g)}
         <button class="logbtn" onclick="openLog(LOGPRE[${LOGPRE.push({type:'spread',game:g.away_team+' @ '+g.home_team,home:g.home_team,away:g.away_team,mline:g.market_line}) - 1}])">+ bet spread</button>
         <button class="logbtn" onclick="openLog(LOGPRE[${LOGPRE.push({type:'total',game:g.away_team+' @ '+g.home_team,mtotal:g.market_total}) - 1}])">+ bet total</button>
       </div>
@@ -368,6 +371,41 @@ function propsView(){
     el.append($('<div class="empty" style="padding:12px 8px;font-size:12px">Correlations measured from 3 seasons of same-game results. Check DK\'s quoted SGP price against the "worth it" number — below it, pass.</div>'));
   }
   return el;
+}
+
+// ===== Line movement timelines =====
+const MV = [];
+function mvBtn(g){
+  const mv = D.moves[g.away_team + ' @ ' + g.home_team];
+  if (!mv || (((mv.s || []).length < 2) && ((mv.t || []).length < 2))) return '';
+  const i = MV.push({mv, away: g.away_team, home: g.home_team,
+                     mline: g.model_line, mtotal: g.model_total}) - 1;
+  return `<button class="logbtn" onclick="toggleMv(this, ${i})">history</button>`;
+}
+function _verdict(series, model){
+  if (model == null || !series || series.length < 2) return '';
+  const first = series[0][1], last = series.at(-1)[1];
+  if ((first - model) * (last - model) < 0) return ' · <b>crossed our number</b>';
+  return Math.abs(last - model) < Math.abs(first - model)
+    ? ' · moving toward model' : ' · moving away from model';
+}
+function toggleMv(btn, i){
+  const card = btn.closest('.card');
+  const old = card.querySelector('.mvbox');
+  if (old){ old.remove(); return; }
+  const {mv, away, home, mline, mtotal} = MV[i];
+  let html = '<div class="mvbox injnote" style="margin-top:8px">';
+  if ((mv.s || []).length){
+    html += '<div><b>Spread:</b> ' + mv.s.map(p =>
+      `${p[0]} ${fmtLine(away, home, p[1])}`).join(' → ')
+      + _verdict(mv.s, mline) + '</div>';
+  }
+  if ((mv.t || []).length){
+    html += '<div style="margin-top:4px"><b>Total:</b> ' + mv.t.map(p =>
+      `${p[0]} ${p[1].toFixed(1)}`).join(' → ') + _verdict(mv.t, mtotal) + '</div>';
+  }
+  html += '</div>';
+  card.append($(html));
 }
 
 function seasonView(){

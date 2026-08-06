@@ -81,6 +81,7 @@ def scan(target_season: int) -> pl.DataFrame:
     empty = pl.DataFrame(schema={
         "slot": pl.String, "slot_order": pl.Int64, "player": pl.String,
         "team": pl.String, "game": pl.String, "market": pl.String,
+        "market_key": pl.String, "nkey": pl.String,
         "side": pl.String, "line": pl.Float64, "price": pl.Int64,
         "proj": pl.Float64, "p_win": pl.Float64, "ev_pct": pl.Float64,
     })
@@ -119,18 +120,23 @@ def scan(target_season: int) -> pl.DataFrame:
         rows.append({
             "slot": slot, "slot_order": order, "player": r["player_display_name"],
             "team": r["team"], "game": f'{r["away"]} @ {r["home"]}',
-            "market": MARKET_LABEL.get(market, market), "side": r["side"],
+            "market": MARKET_LABEL.get(market, market), "market_key": market,
+            "nkey": r["nkey"], "side": r["side"],
             "line": r["line"], "price": price, "proj": round(float(r[proj_col]), 1),
             "p_win": round(p, 3), "ev_pct": round(ev * 100, 1),
         })
     if not rows:
         return empty
     out = pl.DataFrame(rows)
-    # best side per player-market (an Over and Under can't both be listed),
-    # then top N per slot by EV
-    out = (
+    # best side per player-market (an Over and Under can't both be listed)
+    return (
         out.sort("ev_pct", descending=True)
         .unique(subset=["player", "market", "game"], keep="first")
         .sort(["slot_order", "ev_pct"], descending=[False, True])
     )
-    return out.group_by("slot", maintain_order=True).head(C.PROP_TOP_N)
+
+
+def top_per_slot(plays: pl.DataFrame) -> pl.DataFrame:
+    if plays.height == 0:
+        return plays
+    return plays.group_by("slot", maintain_order=True).head(C.PROP_TOP_N)

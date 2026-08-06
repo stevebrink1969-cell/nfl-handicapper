@@ -49,10 +49,12 @@ def _cached_stats(seasons: list[int]) -> pl.DataFrame:
 def load_stats(seasons: list[int]) -> pl.DataFrame:
     ps = _cached_stats(seasons)
     pos = "position" if "position" in ps.columns else "position_group"
+    opp = (pl.col("opponent_team") if "opponent_team" in ps.columns
+           else pl.lit(None, pl.String)).alias("opponent")
     return ps.select(
         "player_id", "player_display_name", pl.col(pos).alias("pos"),
         pl.col("season").cast(pl.Int32), pl.col("week").cast(pl.Int32),
-        "team", *[pl.col(c).cast(pl.Float64) for c in STAT_COLS],
+        "team", opp, *[pl.col(c).cast(pl.Float64) for c in STAT_COLS],
     ).filter(pl.col("team").is_not_null())
 
 
@@ -175,7 +177,7 @@ def build_projections(seasons: list[int]) -> pl.DataFrame:
     all_seasons = [min(seasons) - 1] + list(seasons)
     g = _pipeline(load_stats(all_seasons))
     return g.filter(pl.col("season").is_in(seasons)).select(
-        *_OUT_COLS,
+        *_OUT_COLS, "opponent",
         "receptions", "receiving_yards", "rushing_yards", "carries",
         "passing_yards", "completions", "passing_tds",
         (pl.col("rushing_tds") + pl.col("receiving_tds")).alias("any_tds"),
@@ -208,7 +210,7 @@ def current_projections(target_season: int) -> pl.DataFrame:
         "team",
         *[pl.lit(0.0).alias(c) for c in STAT_COLS],
     )
-    ps = pl.concat([prior, cur, virtual], how="vertical_relaxed")
+    ps = pl.concat([prior, cur, virtual], how="diagonal_relaxed")
     g = _pipeline(ps)
     return g.filter(
         (pl.col("season") == target_season) & (pl.col("week") == next_week)

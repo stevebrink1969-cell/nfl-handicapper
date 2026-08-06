@@ -10,7 +10,7 @@ import polars as pl
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from src import config as C
-from src import data, injuries, odds, pipeline, propscan, site, slate, totals
+from src import data, injuries, odds, pipeline, propscan, sgp, site, slate, totals
 
 OUT = Path(__file__).resolve().parent / "output"
 
@@ -66,13 +66,15 @@ def main() -> None:
     )
 
     try:
-        prop_plays = propscan.scan(sched_season)
+        all_plays = propscan.scan(sched_season)
+        prop_plays = propscan.top_per_slot(all_plays)
+        sgps = sgp.build(all_plays)
     except Exception as e:
         print(f"props scan failed: {e}")
-        prop_plays = None
+        prop_plays, sgps = None, []
 
     payload = site.assemble(games, week, sched_season, built.tr, adjusted,
-                            inj_adj, built.info, prop_plays)
+                            inj_adj, built.info, prop_plays, sgps)
     out = site.write(payload)
 
     listed = report.height

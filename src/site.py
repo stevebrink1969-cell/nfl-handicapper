@@ -12,7 +12,8 @@ SITE_DIR = Path(__file__).resolve().parent.parent / "docs"
 
 def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
              adjusted: pl.DataFrame, inj_adj: pl.DataFrame, info: dict,
-             prop_plays: pl.DataFrame | None = None) -> dict:
+             prop_plays: pl.DataFrame | None = None,
+             sgps: list | None = None) -> dict:
     teams_tbl = tr.join(inj_adj, on="team", how="left").with_columns(
         pl.col("inj_adj").fill_null(0.0)
     )
@@ -53,6 +54,7 @@ def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
         "teams": teams_tbl.select("team", "rating", "inj_adj").to_dicts(),
         "rosters": rosters,
         "props": prop_plays.to_dicts() if prop_plays is not None and prop_plays.height else [],
+        "sgps": sgps or [],
     }
 
 
@@ -248,6 +250,26 @@ function propsView(){
     </tr>`));
   }
   el.append($(`<div class="empty" style="padding:16px 8px;font-size:12px">Top ${5} per slot by expected value · win probabilities from the projection model · rookies and small samples excluded</div>`));
+  if (D.sgps.length){
+    el.append($('<h2>Same-game parlays</h2>'));
+    for (const s of D.sgps){
+      const legs = s.legs.map(l => {
+        const sideTxt = l.side === 'Yes' ? '' : l.side + ' ';
+        const priceTxt = l.price > 0 ? '+' + l.price : l.price;
+        return `<div style="padding:3px 0">${esc(l.player)} — ${sideTxt}${l.line || ''} ${esc(l.market)} <span style="color:var(--ink3)">(${priceTxt})</span></div>`;
+      }).join('');
+      const fair = s.fair_odds > 0 ? '+' + s.fair_odds : s.fair_odds;
+      const minq = s.min_quote > 0 ? '+' + s.min_quote : s.min_quote;
+      el.append($(`<div class="card">
+        <div class="gm-top"><span class="matchup" style="font-size:15px">${esc(s.game)}</span>
+        <span class="when">${esc(s.slot)}</span></div>
+        <div style="margin-top:8px">${legs}</div>
+        <div class="injnote">Win ${(s.p_joint * 100).toFixed(1)}% · fair ${fair} ·
+        <b>worth it if DK quotes ${minq} or better</b> · corr ${s.avg_r >= 0 ? '+' : ''}${s.avg_r}</div>
+      </div>`));
+    }
+    el.append($('<div class="empty" style="padding:12px 8px;font-size:12px">Correlations measured from 3 seasons of same-game results. Check DK\'s quoted SGP price against the "worth it" number — below it, pass.</div>'));
+  }
   return el;
 }
 

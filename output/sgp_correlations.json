@@ -1,0 +1,142 @@
+{
+  "opp_other|carries|carries": {
+    "r": -0.143,
+    "n": 1791
+  },
+  "opp_other|carries|pass_yds": {
+    "r": -0.02,
+    "n": 2437
+  },
+  "opp_other|carries|rec_yds": {
+    "r": -0.006,
+    "n": 9191
+  },
+  "opp_other|carries|receptions": {
+    "r": -0.004,
+    "n": 9191
+  },
+  "opp_other|carries|rush_yds": {
+    "r": -0.126,
+    "n": 3582
+  },
+  "opp_other|pass_yds|rec_yds": {
+    "r": 0.051,
+    "n": 6272
+  },
+  "opp_other|pass_yds|receptions": {
+    "r": 0.015,
+    "n": 6272
+  },
+  "opp_other|pass_yds|rush_yds": {
+    "r": 0.026,
+    "n": 2437
+  },
+  "opp_other|rec_yds|rec_yds": {
+    "r": 0.04,
+    "n": 11883
+  },
+  "opp_other|rec_yds|receptions": {
+    "r": 0.031,
+    "n": 23766
+  },
+  "opp_other|rec_yds|rush_yds": {
+    "r": 0.008,
+    "n": 9191
+  },
+  "opp_other|receptions|receptions": {
+    "r": 0.008,
+    "n": 11883
+  },
+  "opp_other|receptions|rush_yds": {
+    "r": 0.011,
+    "n": 9191
+  },
+  "opp_other|rush_yds|rush_yds": {
+    "r": -0.106,
+    "n": 1791
+  },
+  "opp_pass_pass|pass_yds|pass_yds": {
+    "r": 0.109,
+    "n": 838
+  },
+  "qb_receiver|pass_yds|rec_yds": {
+    "r": 0.295,
+    "n": 6330
+  },
+  "qb_receiver|pass_yds|receptions": {
+    "r": 0.234,
+    "n": 6330
+  },
+  "qb_rusher|carries|pass_yds": {
+    "r": -0.014,
+    "n": 2283
+  },
+  "qb_rusher|pass_yds|rush_yds": {
+    "r": -0.066,
+    "n": 2283
+  },
+  "same_player|carries|rec_yds": {
+    "r": 0.058,
+    "n": 898
+  },
+  "same_player|carries|receptions": {
+    "r": 0.044,
+    "n": 898
+  },
+  "same_player|carries|rush_yds": {
+    "r": 0.769,
+    "n": 2469
+  },
+  "same_player|rec_yds|receptions": {
+    "r": 0.779,
+    "n": 6364
+  },
+  "same_player|rec_yds|rush_yds": {
+    "r": -0.001,
+    "n": 898
+  },
+  "same_player|receptions|rush_yds": {
+    "r": -0.01,
+    "n": 898
+  },
+  "teammates_other|carries|carries": {
+    "r": -0.087,
+    "n": 913
+  },
+  "teammates_other|carries|rec_yds": {
+    "r": 0.015,
+    "n": 8392
+  },
+  "teammates_other|carries|receptions": {
+    "r": -0.021,
+    "n": 8392
+  },
+  "teammates_other|carries|rush_yds": {
+    "r": -0.007,
+    "n": 1826
+  },
+  "teammates_other|rec_yds|rush_yds": {
+    "r": -0.007,
+    "n": 8392
+  },
+  "teammates_other|receptions|rush_yds": {
+    "r": -0.043,
+    "n": 8392
+  },
+  "teammates_other|rush_yds|rush_yds": {
+    "r": 0.047,
+    "n": 913
+  },
+  "teammates_recv|rec_yds|rec_yds": {
+    "r": 0.013,
+    "n": 9730
+  },
+  "teammates_recv|rec_yds|receptions": {
+    "r": 0.019,
+    "n": 19460
+  },
+  "teammates_recv|receptions|receptions": {
+    "r": 0.036,
+    "n": 9730
+  }
+}

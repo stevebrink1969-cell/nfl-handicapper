@@ -101,6 +101,20 @@ def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
         "results": build_results(season),
         "ledger": led,
         "moves": moves or {},
+        "injuries": (
+            adjusted.filter(
+                pl.col("report_status").is_not_null() & (pl.col("rot_w") > 0)
+            )
+            .sort("impact", descending=True)
+            .head(30)
+            .select(
+                pl.col("full_name").alias("n"), "team",
+                pl.col("position").alias("p"),
+                pl.col("report_status").alias("st"),
+                pl.col("p_play").alias("pp"), pl.col("impact").alias("imp"),
+            )
+            .to_dicts()
+        ),
         "board": board.select(
             "week", "gameday", "away_team", "home_team",
             "model_line", "market_line", "mkt_src", "edge",
@@ -314,6 +328,23 @@ function slateView(){
         <button class="logbtn" onclick="openLog(LOGPRE[${LOGPRE.push({type:'spread',game:g.away_team+' @ '+g.home_team,home:g.home_team,away:g.away_team,mline:g.market_line}) - 1}])">+ bet spread</button>
         <button class="logbtn" onclick="openLog(LOGPRE[${LOGPRE.push({type:'total',game:g.away_team+' @ '+g.home_team,mtotal:g.market_total}) - 1}])">+ bet total</button>
       </div>
+    </div>`));
+  }
+  if (D.injuries.length){
+    el.append($('<h2>Injury impact this week — league-wide</h2>'));
+    const rows = D.injuries.map(r => {
+      const st = r.st === 'Questionable'
+        ? `<span class="istat i-q">Q ${Math.round(r.pp * 100)}%</span>`
+        : `<span class="istat i-out">${esc(r.st).toUpperCase()}</span>`;
+      const imp = r.imp ? `-${r.imp.toFixed(1)}` : '—';
+      return `<tr><td>${esc(r.n)}<br><span style="color:var(--ink3);font-size:11px">${r.team} · ${r.p}</span></td>
+        <td class="num">${st}</td>
+        <td class="num" style="color:var(--neg);font-weight:700">${imp}</td></tr>`;
+    }).join('');
+    el.append($(`<div class="card"><table>
+      <thead><tr><th>Player</th><th class="num">Status</th><th class="num">Line impact</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      <div class="injnote" style="margin-top:8px">Projected lineup players on official injury reports, ranked by points their absence costs the line (value over replacement × snap share × sit probability). Already baked into every projected spread above.</div>
     </div>`));
   }
   return el;

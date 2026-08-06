@@ -10,7 +10,7 @@ import polars as pl
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from src import config as C
-from src import data, injuries, odds, pipeline, site, slate, totals
+from src import data, injuries, odds, pipeline, propscan, site, slate, totals
 
 OUT = Path(__file__).resolve().parent / "output"
 
@@ -65,8 +65,14 @@ def main() -> None:
         (pl.col("model_total") - pl.col("market_total")).round(1).alias("total_edge")
     )
 
+    try:
+        prop_plays = propscan.scan(sched_season)
+    except Exception as e:
+        print(f"props scan failed: {e}")
+        prop_plays = None
+
     payload = site.assemble(games, week, sched_season, built.tr, adjusted,
-                            inj_adj, built.info)
+                            inj_adj, built.info, prop_plays)
     out = site.write(payload)
 
     listed = report.height

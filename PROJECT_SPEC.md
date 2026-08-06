@@ -106,6 +106,7 @@ QB rolling values, rookie draft-capital seeding, OL injury calibration.
 | Rollout | Ship each piece when ready; totals first |
 | Totals model | Exploit O/U mispricing: offense/defense split ratings + pace + weather (wind matters for totals, unlike spreads); backtest vs 5 seasons of closing totals, same OOS protocol |
 | Props scanner | Scan ALL player prop markets per time slot, rank by EV, show top 5 per slot |
+| Odds filter | Exclude any prop priced -140 or worse (Steve's discipline rule, 2026-08-06). Config: PROP_MIN_ODDS = -140. Applies to scanner display and SGP legs. |
 | Prop odds | The Odds API paid tier (~$30/mo, 20K credits) — Steve upgrades his existing key |
 | Parlays | Same-game parlays, 2-3 legs, correlation-aware pricing |
 | Bet tracker | On-site log: device-local storage (no sync), dollars, auto-graded from final scores/stats, running P&L + CLV |

@@ -11,7 +11,8 @@ SITE_DIR = Path(__file__).resolve().parent.parent / "docs"
 
 
 def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
-             adjusted: pl.DataFrame, inj_adj: pl.DataFrame, info: dict) -> dict:
+             adjusted: pl.DataFrame, inj_adj: pl.DataFrame, info: dict,
+             prop_plays: pl.DataFrame | None = None) -> dict:
     teams_tbl = tr.join(inj_adj, on="team", how="left").with_columns(
         pl.col("inj_adj").fill_null(0.0)
     )
@@ -51,6 +52,7 @@ def assemble(slate: pl.DataFrame, week: int, season: int, tr: pl.DataFrame,
         ).to_dicts(),
         "teams": teams_tbl.select("team", "rating", "inj_adj").to_dicts(),
         "rosters": rosters,
+        "props": prop_plays.to_dicts() if prop_plays is not None and prop_plays.height else [],
     }
 
 
@@ -151,6 +153,7 @@ h2{font-size:15px;margin:14px 4px 8px;color:var(--ink2)}
 <main id="view"></main>
 <nav>
   <button id="nav-slate" onclick="show('slate')">This Week</button>
+  <button id="nav-props" onclick="show('props')">Props</button>
   <button id="nav-teams" onclick="show('teams')">Teams</button>
   <button id="nav-about" onclick="show('about')">Model</button>
 </nav>
@@ -215,6 +218,36 @@ function slateView(){
       ${notes.length ? `<div class="injnote">${notes.join(' · ')}</div>` : ''}
     </div>`));
   }
+  return el;
+}
+
+function propsView(){
+  const el = $('<div></div>');
+  if (!D.props.length){
+    el.append($(`<div class="empty">No prop plays right now.<br><br>
+      DraftKings posts player props a few days before kickoff — the scanner
+      runs on every refresh and this tab fills in automatically. Props priced
+      worse than -140 are filtered out by design.</div>`));
+    return el;
+  }
+  let slot = null, card = null;
+  for (const p of D.props){
+    if (p.slot !== slot){
+      slot = p.slot;
+      el.append($(`<h2>${slot}</h2>`));
+      card = $('<div class="card"><table><thead><tr><th>Player</th><th>Prop</th><th class="num">Proj</th><th class="num">EV</th></tr></thead><tbody></tbody></table></div>');
+      el.append(card);
+    }
+    const sideTxt = p.side === 'Yes' ? '' : p.side + ' ';
+    const priceTxt = p.price > 0 ? '+' + p.price : p.price;
+    card.querySelector('tbody').append($(`<tr>
+      <td>${esc(p.player)}<br><span style="color:var(--ink3);font-size:12px">${p.team} · ${esc(p.game)}</span></td>
+      <td>${sideTxt}${p.line || ''} ${esc(p.market)}<br><span style="color:var(--ink3);font-size:12px">${priceTxt}</span></td>
+      <td class="num">${p.proj}</td>
+      <td class="num" style="color:var(--good);font-weight:700">+${p.ev_pct}%</td>
+    </tr>`));
+  }
+  el.append($(`<div class="empty" style="padding:16px 8px;font-size:12px">Top ${5} per slot by expected value · win probabilities from the projection model · rookies and small samples excluded</div>`));
   return el;
 }
 
@@ -288,9 +321,10 @@ function aboutView(){
 function show(which, arg){
   const v = document.getElementById('view');
   v.replaceChildren();
-  for (const n of ['slate','teams','about'])
+  for (const n of ['slate','props','teams','about'])
     document.getElementById('nav-' + n).classList.toggle('on', n === which || (which === 'roster' && n === 'teams'));
   if (which === 'slate') v.append(slateView());
+  else if (which === 'props') v.append(propsView());
   else if (which === 'teams') v.append(teamsView());
   else if (which === 'roster') v.append(rosterView(arg));
   else v.append(aboutView());

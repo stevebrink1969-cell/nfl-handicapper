@@ -82,6 +82,20 @@ ROTATION = {
     "DB": [0.92, 0.88, 0.82, 0.62, 0.30, 0.15],
 }
 
+# Props scanner
+PROP_MIN_ODDS = -140        # Steve's rule: exclude props juiced beyond -140
+PROPS_MAX_DAYS_AHEAD = 8    # only fetch prop odds within this window (quota)
+PROP_MIN_HISTORY_GAMES = 4  # min player games (cur+prior) to trust projection
+PROP_TOP_N = 5              # plays shown per time slot
+# sd = a + b*projection, fitted in scripts/props_validate.py (2023-24, tested 2025)
+PROP_SD = {
+    "player_receptions": (1.3, 0.25),
+    "player_reception_yds": (14.2, 0.40),
+    "player_rush_yds": (19.4, 0.26),
+    "player_rush_attempts": (5.2, 0.04),
+    "player_pass_yds": (138.5, -0.25),
+}
+
 # Final scaling: team ratings normalized so their std dev matches typical NFL
 # team-strength spread in points (only used before calibration exists).
 TEAM_RATING_STD = 6.0

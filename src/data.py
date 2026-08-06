@@ -12,6 +12,7 @@ DATA_DIR.mkdir(exist_ok=True)
 PBP_COLS = [
     "season", "week", "game_id", "posteam", "defteam", "play_type", "qtr",
     "epa", "qb_epa", "wp", "score_differential", "qb_dropback", "qb_scramble",
+    "interception", "fumble_lost",
     "sack", "passer_player_id", "passer_player_name", "rusher_player_id",
     "rusher_player_name", "receiver_player_id", "receiver_player_name",
     "sack_player_id", "half_sack_1_player_id", "half_sack_2_player_id",

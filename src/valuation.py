@@ -38,11 +38,59 @@ def add_weights(pbp: pl.DataFrame, wts: dict[int, float]) -> pl.DataFrame:
         .otherwise(pl.lit(1.0))
         .alias("lw")
     )
-    return (
+    out = (
         pbp.with_columns(lw)
         .join(_season_weights(wts), on="season", how="left")
         .with_columns(pl.col("sw").fill_null(0.0))
     )
+    # Turnover-luck multiplier: plays ending in INT / lost fumble keep only
+    # part of their EPA when crediting players (the rest is randomness).
+    out = out.with_columns(
+        pl.when(pl.col("interception").fill_null(0) == 1)
+        .then(C.TO_INT_WEIGHT)
+        .when(pl.col("fumble_lost").fill_null(0) == 1)
+        .then(C.TO_FUM_WEIGHT)
+        .otherwise(1.0)
+        .alias("mult")
+    )
+    # Opponent adjustment: per season, how much better/worse than league
+    # average each defense (def_adj) and offense (off_adj) is, EPA/play,
+    # leverage-weighted. Offensive credits use epa - def_adj (harder opponent
+    # -> more credit); defensive credits use epa - off_adj symmetrically.
+    if C.OPP_ADJUST:
+        plays = out.filter(
+            pl.col("epa").is_not_null()
+            & pl.col("play_type").is_in(["pass", "run"])
+        )
+        lg = plays.group_by("season").agg(
+            ((pl.col("lw") * pl.col("epa")).sum() / pl.col("lw").sum()).alias("lg_mu")
+        )
+        d = (
+            plays.group_by("season", "defteam")
+            .agg(((pl.col("lw") * pl.col("epa")).sum() / pl.col("lw").sum()).alias("d_mu"))
+            .join(lg, on="season")
+            .with_columns((pl.col("d_mu") - pl.col("lg_mu")).alias("def_adj"))
+            .select("season", "defteam", "def_adj")
+        )
+        o = (
+            plays.group_by("season", "posteam")
+            .agg(((pl.col("lw") * pl.col("epa")).sum() / pl.col("lw").sum()).alias("o_mu"))
+            .join(lg, on="season")
+            .with_columns((pl.col("o_mu") - pl.col("lg_mu")).alias("off_adj"))
+            .select("season", "posteam", "off_adj")
+        )
+        out = (
+            out.join(d, on=["season", "defteam"], how="left")
+            .join(o, on=["season", "posteam"], how="left")
+            .with_columns(
+                pl.col("def_adj").fill_null(0.0), pl.col("off_adj").fill_null(0.0)
+            )
+        )
+    else:
+        out = out.with_columns(
+            pl.lit(0.0).alias("def_adj"), pl.lit(0.0).alias("off_adj")
+        )
+    return out
 
 
 def qb_values(pbp: pl.DataFrame) -> pl.DataFrame:
@@ -52,11 +100,14 @@ def qb_values(pbp: pl.DataFrame) -> pl.DataFrame:
             pl.coalesce("passer_player_id", "rusher_player_id").alias("pid"),
         )
         .filter(pl.col("pid").is_not_null() & pl.col("qb_epa").is_not_null())
-        .with_columns((pl.col("sw") * pl.col("lw")).alias("w"))
+        .with_columns(
+            (pl.col("sw") * pl.col("lw")).alias("w"),
+            ((pl.col("qb_epa") - pl.col("def_adj")) * pl.col("mult")).alias("qb_epa_c"),
+        )
     )
     g = db.group_by("pid").agg(
         pl.col("w").sum().alias("wdb"),
-        (pl.col("w") * pl.col("qb_epa")).sum().alias("wepa"),
+        (pl.col("w") * pl.col("qb_epa_c")).sum().alias("wepa"),
     )
     # Replacement level from qualified QBs' raw rates; low-sample QBs shrink
     # TOWARD replacement (not league mean), so a hot 100-dropback cameo can't
@@ -109,7 +160,7 @@ def rush_values(pbp: pl.DataFrame) -> pl.DataFrame:
     return _rate_per_game(
         runs,
         "rusher_player_id",
-        pl.col("lw") * pl.col("epa") * C.RUSH_CREDIT,
+        pl.col("lw") * (pl.col("epa") - pl.col("def_adj")) * pl.col("mult") * C.RUSH_CREDIT,
         "rush_pts",
     )
 
@@ -119,7 +170,7 @@ def recv_values(pbp: pl.DataFrame) -> pl.DataFrame:
     return _rate_per_game(
         targets,
         "receiver_player_id",
-        pl.col("lw") * pl.col("epa") * C.RECV_CREDIT,
+        pl.col("lw") * (pl.col("epa") - pl.col("def_adj")) * pl.col("mult") * C.RECV_CREDIT,
         "recv_pts",
     )
 
@@ -127,7 +178,7 @@ def recv_values(pbp: pl.DataFrame) -> pl.DataFrame:
 def def_values(pbp: pl.DataFrame) -> pl.DataFrame:
     """Credit defenders on plays they're individually tagged on. EPA credit is
     capped per play so a fluky pick-six doesn't mint a star."""
-    dcred = (-pl.col("epa")).clip(-1.0, C.DEF_PLAY_EPA_CAP)
+    dcred = (-(pl.col("epa") - pl.col("off_adj"))).clip(-1.0, C.DEF_PLAY_EPA_CAP) * pl.col("mult")
     types = [
         ("sack_player_id", C.DEF_SACK_CREDIT),
         ("half_sack_1_player_id", 0.5 * C.DEF_SACK_CREDIT),

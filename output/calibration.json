@@ -1,14 +1,14 @@
 {
-  "k_qb": 0.8533321918189047,
-  "k_perf": 1.5741659122497547,
+  "k_qb": 0.8211683131777567,
+  "k_perf": 1.9007952968691666,
   "k_base": 0.5,
-  "hfa": 1.6630726431103224,
+  "hfa": 1.6602207605906183,
   "fit_target": "closing_spread",
   "fit_mode": "weekly_in_season",
   "games": 1424,
-  "mae_vs_close": 3.1550460766347936,
-  "corr_vs_close": 0.7375103106524542,
-  "mae_vs_margin": 10.006608688907892,
+  "mae_vs_close": 3.087307435605905,
+  "corr_vs_close": 0.7488845662193033,
+  "mae_vs_margin": 10.006066976323643,
   "market_mae_vs_margin": 9.762289325842696,
   "oos_note": "OOS 2023-25: MAE 3.03, ATS edge>=2 54.9%, edge>=3 57.5%"
 }

@@ -24,6 +24,15 @@ WP_LO, WP_HI = 0.05, 0.95          # win-prob band where plays count fully
 GARBAGE_WEIGHT = 0.15              # weight for plays outside the band
 BLOWOUT_MARGIN = 17                # 4th-qtr lead where plays are also discounted
 
+# Research-driven adjustments (validated in scripts/oos_test3.py).
+# Turnover EPA is mostly luck (turnover margin persists ~11% year over year;
+# fumble recovery is ~random), so turnover plays keep only part of their EPA
+# when crediting players. Opponent adjustment credits EPA relative to the
+# strength of the defense/offense actually faced.
+OPP_ADJUST = True
+TO_INT_WEIGHT = 0.55   # EPA retained on interception plays
+TO_FUM_WEIGHT = 0.45   # EPA retained on lost-fumble plays
+
 # Attribution credit shares (portion of play EPA credited to the individual)
 QB_CREDIT = 0.50
 RUSH_CREDIT = 0.50
